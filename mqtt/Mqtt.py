@@ -15,7 +15,7 @@ class MqttMonitor:
         self.topics.append({"topic":topic, "handler":handler})
 
     def on_connect(self, client, userdata, flags, result):
-        logging.debug(f"connected with result code {result}")
+        logging.debug("connected with result code %s", result")
         client.subscribe("clock") # so that we get at least one message per minute
         #client.subscribe("ups")
         # [client.subscribe(t["topic"]) for t in self.topics if t.xxx ] # list comprehension
@@ -35,9 +35,9 @@ class MqttMonitor:
 
 
     def on_disconnect(self, client, userdata, rc=0):
-        logging.debug(f"Disconnected result code {rc}")
+        logging.debug("Disconnected result code %s", rc)
         # client.loop_stop()
 
-    def go(self):        
+    def start(self):        
         self.client.connect(self.IP_address, self.port) #establish connection
         self.client.loop_start() # spawn thread that calls loop() for us

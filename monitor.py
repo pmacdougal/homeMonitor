@@ -7,6 +7,8 @@ import time
 import sys
 from mqtt.Mqtt import MqttMonitor
 from handler.Handler import Garage, Laser
+from adafruit.Adafruit import Adafruit
+from .private import password
 
 def main():
     logging.basicConfig(level=logging.INFO)
@@ -16,6 +18,7 @@ def main():
     laser = Laser("tele/sonoffP/SENSOR", metering_queue)
     #garage.dump_info()
     #laser.dump_info()
+    aio = Adafruit('pmacdougal', password)
 
     try:
         # create an MQTT monitor and set up the topics being monitored
@@ -23,22 +26,20 @@ def main():
         monitor.topic(garage.topic, garage)
         monitor.topic(laser.topic, laser)
         # go
-        monitor.go()
+        monitor.start()
 
         while True:
             if len(metering_queue):
-                if (isinstance(metering_queue[0], dict)
-                    and "topic" in metering_queue[0]
-                    and "message" in metering_queue[0]):
-                    foo = metering_queue[0].get("topic", "")
-                    bar = metering_queue[0].get("message", "")
-                    if "" != foo:
-                        # send bar to foo
-                 metering_queue.remove()
-                
-            time.sleep(120)
-            print(len(metering_queue))
-            # ping io.adafruit.com to say we are up and running
+                #if (isinstance(metering_queue[0], dict)
+                #    and "topic" in metering_queue[0]
+                #    and "message" in metering_queue[0]):
+                t = metering_queue[0].get("topic", "")
+                m = metering_queue[0].get("message", "")
+                aio.publish(t, m)
+                metering_queue.remove()
+            else:
+                time.sleep(5)
+
     except Exception as e:
         logging.error(f"Exception: {e}")
         status = 1
