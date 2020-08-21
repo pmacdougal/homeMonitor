@@ -6,25 +6,25 @@ import logging
 import time
 import sys
 from mqtt.Mqtt import MqttMonitor
-from handler.Handler import Garage, Laser
+from handler.Handler import Garage, Laser, SoilProbe, Waterer, Printer, Washer
 from adafruit.Adafruit import Adafruit
-from .private import password
+from private import password
 
 def main():
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
     # configure device handlers
     metering_queue = []
-    garage = Garage("tele/99e934/SENSOR", metering_queue)
-    laser = Laser("tele/sonoffP/SENSOR", metering_queue)
-    #garage.dump_info()
-    #laser.dump_info()
     aio = Adafruit('pmacdougal', password)
 
     try:
         # create an MQTT monitor and set up the topics being monitored
         monitor = MqttMonitor("192.168.2.30")
-        monitor.topic(garage.topic, garage)
-        monitor.topic(laser.topic, laser)
+        monitor.topic(Garage("tele/99e934/SENSOR", metering_queue))
+        monitor.topic(Laser("tele/sonoffP/SENSOR", metering_queue))
+        monitor.topic(SoilProbe('tele/3154ff/SENSOR', metering_queue))
+        monitor.topic(Waterer('tele/99e813/SENSOR', metering_queue))
+        monitor.topic(Printer('tele/sonoffD/SENSOR', metering_queue))
+        monitor.topic(Washer('tele/sonoffE/SENSOR', metering_queue))
         # go
         monitor.start()
 
@@ -35,8 +35,9 @@ def main():
                 #    and "message" in metering_queue[0]):
                 t = metering_queue[0].get("topic", "")
                 m = metering_queue[0].get("message", "")
-                aio.publish(t, m)
-                metering_queue.remove()
+                f = metering_queue[0].get("filter", True)
+                if 0 == aio.publish(t, m, filter=f): # if successful handling of this message
+                    metering_queue.pop(0)
             else:
                 time.sleep(5)
 

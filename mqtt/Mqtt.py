@@ -11,18 +11,18 @@ class MqttMonitor:
         self.client.on_disconnect = self.on_disconnect
         self.topics = []
 
-    def topic(self, topic, handler):
-        self.topics.append({"topic":topic, "handler":handler})
+    def topic(self, handler):
+        self.topics.append({"topic":handler.topic, "handler":handler})
 
     def on_connect(self, client, userdata, flags, result):
-        logging.debug("connected with result code %s", result")
+        logging.debug("MqttMonitor: connected with result code %s", result)
         client.subscribe("clock") # so that we get at least one message per minute
         #client.subscribe("ups")
         # [client.subscribe(t["topic"]) for t in self.topics if t.xxx ] # list comprehension
         [client.subscribe(t["topic"]) for t in self.topics] # list comprehension
 
     def on_message(self, client, userdata, msg):
-        logging.debug("got message %s %s at %s", msg.topic, msg.payload, msg.timestamp)
+        logging.debug("MqttMonitor: got message %s %s at %s", msg.topic, msg.payload, msg.timestamp)
         
         #foo = [t for t in self.topics if t["topic"] == msg.topic]
         #print(f'send {msg.topic} to handler {foo[0].name}')
@@ -30,12 +30,12 @@ class MqttMonitor:
 
         for t in self.topics:
             if t["topic"] == msg.topic:
-                print(f'send {msg.topic} to handler {t["handler"].name}')
+                print(f'MqttMonitor: send {msg.topic} to handler {t["handler"].name}')
                 t["handler"].handle_json(msg.payload)
 
 
     def on_disconnect(self, client, userdata, rc=0):
-        logging.debug("Disconnected result code %s", rc)
+        logging.debug("MqttMonitor: Disconnected result code %s", rc)
         # client.loop_stop()
 
     def start(self):        
