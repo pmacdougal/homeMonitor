@@ -1,8 +1,7 @@
 from monitor import Monitor
 
 def main():
-    mon = Monitor()
-    return mon.run()
+    return Monitor().run()
 
 # This is not a module, so run the main routine when executed
 if __name__ == '__main__':

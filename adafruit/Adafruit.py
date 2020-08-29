@@ -32,7 +32,7 @@ class Adafruit:
             logging.debug("Adafruit: publish %s to %s", message, topic)
             self.feed_cache[topic] = message
             # this next line needs to be un-commented if you want to actually publish to AdaFruit
-            #self.aio.send(topic, message)
+            self.aio.send(topic, message)
         else:
             logging.debug("Adafruit: Filtering out %s", topic)
 
