@@ -31,6 +31,7 @@ class Adafruit:
         if topic not in self.feed_cache or (filter and message != self.feed_cache[topic]):
             logging.debug("Adafruit: publish %s to %s", message, topic)
             self.feed_cache[topic] = message
+            # this next line needs to be un-commented if you want to actually publish to AdaFruit
             #self.aio.send(topic, message)
         else:
             logging.debug("Adafruit: Filtering out %s", topic)

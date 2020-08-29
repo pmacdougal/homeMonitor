@@ -1,4 +1,5 @@
 import logging
+import json
 import paho.mqtt.client as mqtt
 
 class MqttMonitor:
@@ -19,19 +20,25 @@ class MqttMonitor:
         client.subscribe("clock") # so that we get at least one message per minute
         #client.subscribe("ups")
         # [client.subscribe(t["topic"]) for t in self.topics if t.xxx ] # list comprehension
-        [client.subscribe(t["topic"]) for t in self.topics] # list comprehension
+        [client.subscribe(t["topic"]) for t in self.topics] # list comprehension of all topics
+        # do we want to publish any status message to adafruit?
 
     def on_message(self, client, userdata, msg):
         logging.debug("MqttMonitor: got message %s %s at %s", msg.topic, msg.payload, msg.timestamp)
         
         #foo = [t for t in self.topics if t["topic"] == msg.topic]
-        #print(f'send {msg.topic} to handler {foo[0].name}')
+        #print(f'MqttMonitor: send {msg.topic} to handler {foo[0].name}')
         #foo[0].handle_json(msg.payload)
 
+        # Send the message payload to the proper handler
         for t in self.topics:
             if t["topic"] == msg.topic:
-                print(f'MqttMonitor: send {msg.topic} to handler {t["handler"].name}')
-                t["handler"].handle_json(msg.payload)
+                #print(f'MqttMonitor: send {msg.topic} to handler {t["handler"].name}')
+                try:
+                    t["handler"].handle_json(msg.payload)
+                except JSONDecodeError:
+                    pass
+                break # break out of the loop early
 
 
     def on_disconnect(self, client, userdata, rc=0):
