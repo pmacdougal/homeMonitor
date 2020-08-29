@@ -16,8 +16,8 @@ class Adafruit:
     def publish(self, topic, message, *, filter=True):
         # Once an hour, empty the feed cache
         now = time.time()
-        if 60*60 < now - self.last_flush_time: # The hour has advanced and the minutes have wrapped from 59 to 0
-            logging.debug("Adafruit: Clearing feed_cache at %s", datetime.datetime.now())
+        if 60*60 < now - self.last_flush_time:
+            logging.info("Adafruit: Clearing feed_cache at %s", datetime.datetime.now())
             self.feed_cache = {}
             self.last_flush_time = now
 
@@ -32,7 +32,19 @@ class Adafruit:
             logging.debug("Adafruit: publish %s to %s", message, topic)
             self.feed_cache[topic] = message
             # this next line needs to be un-commented if you want to actually publish to AdaFruit
-            self.aio.send(topic, message)
+            try:
+                self.aio.send_data(topic, message)
+            except RequestError:
+                logging.error("Exception: Got a RequestError for %s", topic)
+            except ThrottlingError:
+                logging.error("Exception: Got a ThrottlingError for %s", topic)
+            except AdafruitIOError:
+                logging.error("Exception: Got an AdafruitIOError for %s", topic)
+            except Exception as e:
+                logging.error("Exception: %s", e)
+            else:
+                logging.debug("publish succeeded for %s", topic)
+
         else:
             logging.debug("Adafruit: Filtering out %s", topic)
 

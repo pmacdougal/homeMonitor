@@ -60,7 +60,7 @@ class SoilProbe(Handler):
         logging.debug("SoilProbe: got message %s", json_string)
         data = json.loads(json_string)
         self.publish('h.sp', data['S0'])
-        self.publish('h.sbp', data['S1'])
+        self.publish('h.sb', data['S1'])
 
 
 class Waterer(Handler):
@@ -73,7 +73,7 @@ class Waterer(Handler):
         data = json.loads(json_string)
         self.publish('h.r', data['RTCount'])
         self.publish('h.v', data['valveCount'])
-        self.publish('h.vR', data['VBATLOAD'])
+        self.publish('h.vr', data['VBATLOAD'])
 
 
 class Printer(Handler):
