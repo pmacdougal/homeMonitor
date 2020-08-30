@@ -29,11 +29,11 @@ class Adafruit:
         self.last_publish_time = now
 
         if topic not in self.feed_cache or (filter and message != self.feed_cache[topic]):
-            logging.debug("Adafruit: publish %s to %s", message, topic)
+            #logging.debug("Adafruit: publish %s to %s", message, topic)
             self.feed_cache[topic] = message
-            # this next line needs to be un-commented if you want to actually publish to AdaFruit
             try:
-                self.aio.send_data(topic, message)
+                pub_result = self.aio.send_data(topic, message)                
+                # Data(created_epoch=1598796144, created_at='2020-08-30T14:02:24Z', updated_at=None, value='122', completed_at=None, feed_id=1404586, expiration='2020-10-29T14:02:24Z', position=None, id='0EH9YC6HB3M2YETZXNJS79D0HV', lat=None, lon=None, ele=None)
             except RequestError:
                 logging.error("Exception: Got a RequestError for %s", topic)
             except ThrottlingError:
@@ -43,9 +43,9 @@ class Adafruit:
             except Exception as e:
                 logging.error("Exception: %s", e)
             else:
-                logging.debug("publish succeeded for %s", topic)
+                logging.info("Adafruit: Publish succeeded for %s %s at %s", topic, message, pub_result.created_at)
 
         else:
-            logging.debug("Adafruit: Filtering out %s", topic)
+            logging.info("Adafruit: Filtering out %s", topic)
 
         return 0 # successful processing of this message

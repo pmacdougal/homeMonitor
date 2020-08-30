@@ -33,50 +33,17 @@ class Monitor:
             monitor.topic(Printer('tele/sonoffD/SENSOR', metering_queue))
             monitor.topic(Washer('tele/sonoffE/SENSOR', metering_queue))
             monitor.topic(Laser("tele/sonoffP/SENSOR", metering_queue))
+            # tele/920e8c/SENSOR (esp_now_slave) {"S0":332,"S1":0,"S2":0}
+            # tele/0dd6ce/T0 (esp_status)
             # tele/1dc700/SENSOR {"Sketch":"tsunamiLight v1.0","SQ":-78,"minSQ":-90,"maxSQ":-71}
-            # tele/GosundW/STATE (machine room LED lights)
+            # tele/GosundW/STATE (machine room LED lights) {"Time":"2020-08-30T10:16:28","Uptime":"22T12:28:56","UptimeSec":1945736,"Heap":31,"SleepMode":"Dynamic","Sleep":50,"LoadAvg":19,"MqttCount":7,"POWER":"OFF","Wifi":{"AP":1,"SSId":"Cisco52305","BSSId":"68:7F:74:49:E3:7E","Channel":6,"RSSI":24,"Signal":-88,"LinkCount":3,"Downtime":"0T00:00:18"}}
             # tele/GosundX/STATE (machine room power strip)
             # tele/GosundY/STATE (TV room light)
-            # tele/shellyB/STATE (machine room ceiling fan and light)
-            #     {"Time":"2020-08-28T16:13:18",
-            #      "Uptime":"47T01:41:24",
-            #      "Heap":14,
-            #      "SleepMode":"Dynamic",
-            #      "Sleep":50,
-            #      "LoadAvg":19,
-            #      "POWER1":"OFF",
-            #      "POWER2":"OFF",
-            #      "Wifi":{"AP":1,
-            #              "SSId":"Cisco52305",
-            #              "BSSId":"68:7F:74:49:E3:7E",
-            #              "Channel":6,
-            #              "RSSI":40,
-            #              "LinkCount":10,
-            #              "Downtime":"0T00:00:56"}
-            #     }
+            # tele/shellyB/STATE (machine room ceiling fan and light) {"Time":"2020-08-30T10:14:45","Uptime":"48T19:42:51","Heap":14,"SleepMode":"Dynamic","Sleep":50,"LoadAvg":19,"POWER1":"OFF","POWER2":"OFF","Wifi":{"AP":1,"SSId":"Cisco52305","BSSId":"68:7F:74:49:E3:7E","Channel":6,"RSSI":42,"LinkCount":10,"Downtime":"0T00:00:56"}}
+            # tele/shellyB/SENSOR (machine room ceiling fan and light) {"Time":"2020-08-30T10:15:00","Switch1":"OFF","Switch2":"OFF","ANALOG":{"Temperature":100.1},"ENERGY":{"TotalStartTime":"2019-07-25T22:29:23","Total":0.586,"Yesterday":0.033,"Today":0.000,"Period":0,"Power":0,"ApparentPower":0,"ReactivePower":0,"Factor":0.00,"Voltage":0,"Current":0.000},"TempUnit":"F"}
+            # tele/sonoffQ/STATE (soldering iron) {"Time":"2020-08-28T20:37:17","Uptime":"0T00:20:22","Heap":15,"SleepMode":"Dynamic","Sleep":50,"LoadAvg":19,"POWER":"ON","Wifi":{"AP":1,"SSId":"Cisco52305","BSSId":"68:7F:74:49:E3:7E","Channel":6,"RSSI":44,"LinkCount":1,"Downtime":"0T00:00:10"}}
+            # tele/sonoffQ/SENSOR (soldering iron) {"Time":"2020-08-28T20:37:17","ENERGY":{"TotalStartTime":"2020-04-07T03:01:40","Total":0.034,"Yesterday":0.000,"Today":0.000,"Period":0,"Power":0,"ApparentPower":0,"ReactivePower":0,"Factor":0.00,"Voltage":121,"Current":0.000}}
 
-            # tele/shellyB/SENSOR (machine room ceiling fan and light)
-            #     {"Time":"2020-08-28T16:09:33",
-            #      "Switch1":"OFF",
-            #      "Switch2":"OFF",
-            #      "ANALOG":{"Temperature":100.1},
-            #      "ENERGY":{"TotalStartTime":"2019-07-25T22:29:23",
-            #                "Total":0.529,
-            #                "Yesterday":0.000,
-            #                "Today":0.000,
-            #                "Period":0,
-            #                "Power":0,
-            #                "ApparentPower":0,
-            #                "ReactivePower":0,
-            #                "Factor":0.00,
-            #                "Voltage":0,
-            #                "Current":0.000},
-            #      "TempUnit":"F"}
-            # tele/920e8c/SENSOR {"S0":332,"S1":0,"S2":0}
-            # tele/sonoffQ/STATE {"Time":"2020-08-28T20:37:17","Uptime":"0T00:20:22","Heap":15,"SleepMode":"Dynamic","Sleep":50,"LoadAvg":19,"POWER":"ON","Wifi":{"AP":1,"SSId":"Cisco52305","BSSId":"68:7F:74:49:E3:7E","Channel":6,"RSSI":44,"LinkCount":1,"Downtime":"0T00:00:10"}}
-            # tele/sonoffQ/SENSOR {"Time":"2020-08-28T20:37:17","ENERGY":{"TotalStartTime":"2020-04-07T03:01:40","Total":0.034,"Yesterday":0.000,"Today":0.000,"Period":0,"Power":0,"ApparentPower":0,"ReactivePower":0,"Factor":0.00,"Voltage":121,"Current":0.000}}
-
-            # tele/0dd6ce/T0 (esp_status)
 
             # go
             monitor.start()

@@ -9,7 +9,7 @@ class Handler:
         self.metering_queue = metering_queue
 
     def publish(self, topic, message, *, filter=True):
-        logging.info("Handler: %s publish %s to topic %s", self.name, message, topic)
+        logging.debug("Handler: %s publish %s to topic %s", self.name, message, topic)
         if not filter:
             self.metering_queue.append({"topic": topic, "message": message, "filter": False})
         else:
