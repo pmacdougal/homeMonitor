@@ -17,7 +17,7 @@ class Handler:
             self.metering_queue.append({"topic": topic, "message": message})
 
     def dump_info(self):
-        logging.info("%s is handling %s", self.name, self.topic)
+        logging.info("%s is handling %s", self.NAME, self.topic)
 
     def handle_json(self, json_string):
         raise NotImplementedError("You should not directly use a Handler class object")
@@ -68,9 +68,9 @@ class SoilProbe(Handler):
 
 
 class Waterer(Handler):
+    NAME = "Washer"
     def __init__(self, topic, metering_queue):
         Handler.__init__(self, topic, metering_queue)
-        self.name = "Waterer"
 
     def handle_json(self, json_string):
         logging.debug("Waterer: got message %s", json_string)
@@ -81,9 +81,10 @@ class Waterer(Handler):
 
 
 class Printer(Handler):
+    NAME = "Printer"
+
     def __init__(self, topic, metering_queue):
         Handler.__init__(self, topic, metering_queue)
-        self.name = "Printer"
 
     def handle_json(self, json_string):
         logging.debug("Printer: got message %s", json_string)
@@ -95,9 +96,10 @@ class Printer(Handler):
 
 
 class Washer(Handler):
+    NAME = "Washer"
+
     def __init__(self, topic, metering_queue):
         Handler.__init__(self, topic, metering_queue)
-        self.name = "Washer"
 
     def handle_json(self, json_string):
         logging.debug("Washer: got message %s", json_string)
@@ -109,9 +111,9 @@ class Washer(Handler):
         self.publish('h.washervoltage', data['ENERGY']['Voltage'])
 
 class CatFeeder(Handler):
+    NAME = "CatFeeder"
     def __init__(self, topic, metering_queue):
         Handler.__init__(self, topic, metering_queue)
-        self.name = "CatFeeder"
 
     def handle_json(self, json_string):
         logging.info("CatFeeder: got message %s", json_string)
