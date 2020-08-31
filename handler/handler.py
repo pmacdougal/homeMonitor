@@ -114,7 +114,7 @@ class CatFeeder(Handler):
         self.name = "CatFeeder"
 
     def handle_json(self, json_string):
-        logging.debug("CatFeeder: got message %s", json_string)
+        logging.info("CatFeeder: got message %s", json_string)
         data = json.loads(json_string)
         if 'CFCount' in data:
             self.publish('h.cf', data['CFCount'])
