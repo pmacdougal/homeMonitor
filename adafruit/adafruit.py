@@ -29,7 +29,7 @@ class Adafruit:
         self.last_publish_time = now
 
         if topic not in self.feed_cache or (filter and message != self.feed_cache[topic]):
-            #logging.debug("Adafruit: publish %s to %s", message, topic)
+            logging.debug("Adafruit: publish %s to %s", message, topic)
             self.feed_cache[topic] = message
             try:
                 pub_result = self.aio.send_data(topic, message)                
