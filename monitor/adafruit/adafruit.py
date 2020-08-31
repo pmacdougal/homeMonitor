@@ -21,15 +21,14 @@ class Adafruit:
             self.feed_cache = {}
             self.last_flush_time = now
 
-
-        delta = now - self.last_publish_time
-        if delta < self.period:
-            return 1 # return without publishing
-
-        self.last_publish_time = now
-
         if topic not in self.feed_cache or (filter and message != self.feed_cache[topic]):
+            
+            delta = now - self.last_publish_time
+            if delta < self.period:
+                return 1 # return without publishing
+
             logging.debug("Adafruit: publish %s to %s", message, topic)
+            self.last_publish_time = now
             self.feed_cache[topic] = message
             try:
                 pub_result = self.aio.send_data(topic, message)                
@@ -46,6 +45,6 @@ class Adafruit:
                 logging.info("Adafruit: Publish succeeded for %s %s at %s", topic, message, pub_result.created_at)
 
         else:
-            logging.debug("Adafruit: Filtering out %s", topic)
+            logging.info("Adafruit: Filtering out %s %s", topic, message)
 
         return 0 # successful processing of this message
