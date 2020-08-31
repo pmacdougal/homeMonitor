@@ -3,13 +3,14 @@ import json
 
 
 class Handler:
+    NAME = "Handler"
+
     def __init__(self, topic, metering_queue):
-        self.name = "Handler"
         self.topic = topic
         self.metering_queue = metering_queue
 
     def publish(self, topic, message, *, filter=True):
-        logging.debug("Handler: %s publish %s to topic %s", self.name, message, topic)
+        logging.debug("Handler: %s publish %s to topic %s", self.NAME, message, topic)
         if not filter:
             self.metering_queue.append({"topic": topic, "message": message, "filter": False})
         else:
@@ -23,9 +24,10 @@ class Handler:
 
 
 class Garage(Handler):
+    NAME = "Garage"
+
     def __init__(self, topic, metering_queue):
         Handler.__init__(self, topic, metering_queue)
-        self.name = "Garage"
 
     def handle_json(self, json_string):
         logging.debug("Garage: got message %s", json_string)
@@ -40,9 +42,10 @@ class Garage(Handler):
 
 
 class Laser(Handler):
+    NAME = "Laser"
+
     def __init__(self, topic, metering_queue):
         Handler.__init__(self, topic, metering_queue)
-        self.name = "Laser"
 
     def handle_json(self, json_string):
         logging.debug("Laser: got message %s", json_string)
@@ -52,9 +55,10 @@ class Laser(Handler):
 
 
 class SoilProbe(Handler):
+    NAME = "Soil Probe"
+
     def __init__(self, topic, metering_queue):
         Handler.__init__(self, topic, metering_queue)
-        self.name = "Soil Probe"
 
     def handle_json(self, json_string):
         logging.debug("SoilProbe: got message %s", json_string)
