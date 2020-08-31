@@ -5,10 +5,10 @@
 import logging
 import time
 import sys
-from mqtt.Mqtt import MqttMonitor
-from handler.Handler import Garage, Laser, SoilProbe, Waterer, Printer, Washer, CatFeeder
-from adafruit.Adafruit import Adafruit
-from private import password
+from .mqtt.Mqtt import MqttMonitor
+from .handler.Handler import Garage, Laser, SoilProbe, Waterer, Printer, Washer, CatFeeder
+from .adafruit.Adafruit import Adafruit
+from .private import password
 # private.py is not part of the checked in code.  You will need to create it.
 # It is a one line file with your Adafruit IO access key in it:
 #     password = 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
