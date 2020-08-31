@@ -1,7 +1,9 @@
+from socket import gethostname
 from monitor.monitor import Monitor
 
 def main():
-    return Monitor().run()
+    hostname = gethostname()
+    return Monitor().run(f"start Monitor from {hostname}")
 
 # This is not a module, so run the main routine when executed
 if __name__ == '__main__':

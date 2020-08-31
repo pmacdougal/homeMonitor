@@ -112,6 +112,7 @@ class Washer(Handler):
 
 class CatFeeder(Handler):
     NAME = "CatFeeder"
+
     def __init__(self, topic, metering_queue):
         Handler.__init__(self, topic, metering_queue)
 
@@ -120,3 +121,13 @@ class CatFeeder(Handler):
         data = json.loads(json_string)
         if 'CFCount' in data:
             self.publish('h.cf', data['CFCount'])
+
+class Ups(Handler):
+    NAME = "Ups"
+
+    def __init__(self, topic, metering_queue):
+        Handler.__init__(self, topic, metering_queue)
+
+    def handle_json(self, message): # not a json string
+        logging.info("Ups: got message %s", message)
+        self.publish('h.ups', str(message, "utf-8"))

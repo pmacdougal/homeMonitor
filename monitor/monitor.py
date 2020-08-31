@@ -6,7 +6,7 @@ import logging
 import time
 import sys
 from .mqtt.mqtt import MqttMonitor
-from .handler.handler import Garage, Laser, SoilProbe, Waterer, Printer, Washer, CatFeeder
+from .handler.handler import Garage, Laser, SoilProbe, Waterer, Printer, Washer, CatFeeder, Ups
 from .adafruit.adafruit import Adafruit
 from .private import password
 # private.py is not part of the checked in code.  You will need to create it.
@@ -17,11 +17,11 @@ class Monitor:
     def __init__(self):
         pass
 
-    def run(self):
+    def run(self, msg):
         logging.basicConfig(level=logging.INFO)
         # configure device handlers
         metering_queue = []
-        metering_queue.append({"topic": "h.mqtt", "message": "start Monitor"})
+        metering_queue.append({"topic": "h.mqtt", "message": msg})
         aio = Adafruit('pmacdougal', password)
 
         try:
@@ -34,6 +34,7 @@ class Monitor:
             monitor.topic(Printer('tele/sonoffD/SENSOR', metering_queue))
             monitor.topic(Washer('tele/sonoffE/SENSOR', metering_queue))
             monitor.topic(Laser("tele/sonoffP/SENSOR", metering_queue))
+            monitor.topic(Ups("ups", metering_queue))
             # tele/920e8c/SENSOR (esp_now_slave) {"S0":332,"S1":0,"S2":0}
             # tele/0dd6ce/T0 (esp_status)
             # tele/1dc700/SENSOR {"Sketch":"tsunamiLight v1.0","SQ":-78,"minSQ":-90,"maxSQ":-71}
