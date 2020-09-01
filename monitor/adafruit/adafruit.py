@@ -10,25 +10,28 @@ class Adafruit:
         self.aio = Client(username, password)
         self.last_publish_time = 0
         self.feed_cache = {}
-        self.last_flush_time = time.time()
+        self.last_hour = time.localtime().tm_hour
+        self.publishes_this_hour = 0
         self.period = 2.0 # seconds per message
 
     def publish(self, topic, message, *, filter=True):
         # Once an hour, empty the feed cache
-        now = time.time()
-        if 60*60 < now - self.last_flush_time:
+        localtime = time.localtime()
+        if localtime.tm_hour != self.last_hour:
             logging.info("Adafruit: Clearing feed_cache at %s", datetime.datetime.now())
             self.feed_cache = {}
-            self.last_flush_time = now
+            self.publishes_this_hour = 0
+            self.last_hour = localtime.tm_hour
+        self.publishes_this_hour += 1
 
         if topic not in self.feed_cache or (filter and message != self.feed_cache[topic]):
-            
-            delta = now - self.last_publish_time
+            # rate limiting
+            delta = time.time() - self.last_publish_time
             if delta < self.period:
-                return 1 # return without publishing
+                time.sleep(self.period - delta)
 
             logging.debug("Adafruit: publish %s to %s", message, topic)
-            self.last_publish_time = now
+            self.last_publish_time = time.time()
             self.feed_cache[topic] = message
             try:
                 pub_result = self.aio.send_data(topic, message)                

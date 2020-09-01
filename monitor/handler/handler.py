@@ -8,6 +8,8 @@ class Handler:
     def __init__(self, topic, metering_queue):
         self.topic = topic
         self.metering_queue = metering_queue
+        self.last_hour = time.localtime().tm_hour
+        self.messages_this_hour = 0
 
     def publish(self, topic, message, *, filter=True):
         logging.debug("Handler: %s publish %s to topic %s", self.NAME, message, topic)
@@ -19,8 +21,15 @@ class Handler:
     def dump_info(self):
         logging.info("%s is handling %s", self.NAME, self.topic)
 
-    def handle_json(self, json_string):
-        raise NotImplementedError("You should not directly use a Handler class object")
+    def handle_json(self, json_string):        
+        logging.debug("%s: got message %s", self.NAME, json_string)
+        localtime = time.localtime()
+        if localtime.tm_hour != self.last_hour:
+            # log number of messages received this hour
+            self.publish("h.mph", f"{self.NAME} {self.messages_this_hour}")
+            self.messages_this_hour = 0
+            self.last_hour = localtime.tm_hour
+        self.messages_this_hour += 1
 
 
 class Garage(Handler):
@@ -30,13 +39,12 @@ class Garage(Handler):
         Handler.__init__(self, topic, metering_queue)
 
     def handle_json(self, json_string):
-        logging.debug("Garage: got message %s", json_string)
+        super.handle_json(json_string)
         data = json.loads(json_string)
-        #print(data['doorCount'])
         #print(dir())
         #print(self.__dict__)
         self.publish('g.sq',  data['SQ'])
-        self.publish('g.door', data['doorCount'], filter=False)
+        self.publish('g.door', data['doorCount'])
         self.publish('g.t0',  data['T0'])
         self.publish('g.t1',  data['T1'])
 
@@ -48,9 +56,8 @@ class Laser(Handler):
         Handler.__init__(self, topic, metering_queue)
 
     def handle_json(self, json_string):
-        logging.debug("Laser: got message %s", json_string)
+        super.handle_json(json_string)
         data = json.loads(json_string)
-        #print(data['ENERGY']['Current'])
         self.publish('h.lasercurrent', data['ENERGY']['Current'])
 
 
@@ -61,7 +68,7 @@ class SoilProbe(Handler):
         Handler.__init__(self, topic, metering_queue)
 
     def handle_json(self, json_string):
-        logging.debug("SoilProbe: got message %s", json_string)
+        super.handle_json(json_string)
         data = json.loads(json_string)
         self.publish('h.sp', data['S0'])
         self.publish('h.sb', data['S1'])
@@ -73,7 +80,7 @@ class Waterer(Handler):
         Handler.__init__(self, topic, metering_queue)
 
     def handle_json(self, json_string):
-        logging.debug("Waterer: got message %s", json_string)
+        super.handle_json(json_string)
         data = json.loads(json_string)
         self.publish('h.r', data['RTCount'])
         self.publish('h.v', data['valveCount'])
@@ -87,7 +94,7 @@ class Printer(Handler):
         Handler.__init__(self, topic, metering_queue)
 
     def handle_json(self, json_string):
-        logging.debug("Printer: got message %s", json_string)
+        super.handle_json(json_string)
         data = json.loads(json_string)
         # small current while idle is not interesting, so clamp
         if (0.150 > data['ENERGY']['Current']):
@@ -102,7 +109,7 @@ class Washer(Handler):
         Handler.__init__(self, topic, metering_queue)
 
     def handle_json(self, json_string):
-        logging.debug("Washer: got message %s", json_string)
+        super.handle_json(json_string)
         data = json.loads(json_string)
         # small current while idle is not interesting, so clamp
         if (0.06 > data['ENERGY']['Current']):
@@ -117,10 +124,9 @@ class CatFeeder(Handler):
         Handler.__init__(self, topic, metering_queue)
 
     def handle_json(self, json_string):
-        logging.info("CatFeeder: got message %s", json_string)
+        super.handle_json(json_string)
         data = json.loads(json_string)
-        if 'CFCount' in data:
-            self.publish('h.cf', data['CFCount'])
+        self.publish('h.cf', data['CFCount'])
 
 class Ups(Handler):
     NAME = "Ups"
@@ -129,5 +135,5 @@ class Ups(Handler):
         Handler.__init__(self, topic, metering_queue)
 
     def handle_json(self, message): # not a json string
-        logging.info("Ups: got message %s", message)
+        super.handle_json(json_string)
         self.publish('h.ups', str(message, "utf-8"))
