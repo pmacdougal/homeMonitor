@@ -1,5 +1,6 @@
 import logging
 import json
+import time
 
 
 class Handler:
@@ -39,7 +40,7 @@ class Garage(Handler):
         Handler.__init__(self, topic, metering_queue)
 
     def handle_json(self, json_string):
-        super.handle_json(json_string)
+        super().handle_json(json_string)
         data = json.loads(json_string)
         #print(dir())
         #print(self.__dict__)
@@ -56,7 +57,7 @@ class Laser(Handler):
         Handler.__init__(self, topic, metering_queue)
 
     def handle_json(self, json_string):
-        super.handle_json(json_string)
+        super().handle_json(json_string)
         data = json.loads(json_string)
         self.publish('h.lasercurrent', data['ENERGY']['Current'])
 
@@ -68,7 +69,7 @@ class SoilProbe(Handler):
         Handler.__init__(self, topic, metering_queue)
 
     def handle_json(self, json_string):
-        super.handle_json(json_string)
+        super().handle_json(json_string)
         data = json.loads(json_string)
         self.publish('h.sp', data['S0'])
         self.publish('h.sb', data['S1'])
@@ -80,7 +81,7 @@ class Waterer(Handler):
         Handler.__init__(self, topic, metering_queue)
 
     def handle_json(self, json_string):
-        super.handle_json(json_string)
+        super().handle_json(json_string)
         data = json.loads(json_string)
         self.publish('h.r', data['RTCount'])
         self.publish('h.v', data['valveCount'])
@@ -94,7 +95,7 @@ class Printer(Handler):
         Handler.__init__(self, topic, metering_queue)
 
     def handle_json(self, json_string):
-        super.handle_json(json_string)
+        super().handle_json(json_string)
         data = json.loads(json_string)
         # small current while idle is not interesting, so clamp
         if (0.150 > data['ENERGY']['Current']):
@@ -109,7 +110,7 @@ class Washer(Handler):
         Handler.__init__(self, topic, metering_queue)
 
     def handle_json(self, json_string):
-        super.handle_json(json_string)
+        super().handle_json(json_string)
         data = json.loads(json_string)
         # small current while idle is not interesting, so clamp
         if (0.06 > data['ENERGY']['Current']):
@@ -124,7 +125,7 @@ class CatFeeder(Handler):
         Handler.__init__(self, topic, metering_queue)
 
     def handle_json(self, json_string):
-        super.handle_json(json_string)
+        super().handle_json(json_string)
         data = json.loads(json_string)
         self.publish('h.cf', data['CFCount'])
 
@@ -135,5 +136,5 @@ class Ups(Handler):
         Handler.__init__(self, topic, metering_queue)
 
     def handle_json(self, message): # not a json string
-        super.handle_json(json_string)
+        super().handle_json(json_string)
         self.publish('h.ups', str(message, "utf-8"))
