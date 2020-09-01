@@ -48,6 +48,6 @@ class Adafruit:
                 logging.info("Adafruit: Publish succeeded for %s %s at %s", topic, message, pub_result.created_at)
 
         else:
-            logging.info("Adafruit: Filtering out %s %s", topic, message)
+            logging.debug("Adafruit: Filtering out %s %s", topic, message)
 
         return 0 # successful processing of this message
