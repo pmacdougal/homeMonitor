@@ -1,7 +1,7 @@
 import logging
 import time
 import datetime
-from Adafruit_IO import Client, RequestError, ThrottlingError, AdafruitIOError
+from Adafruit_IO import Client, RequestError, ThrottlingError, AdafruitIOError, Data
 
 
 class Adafruit:
@@ -34,8 +34,11 @@ class Adafruit:
             self.last_publish_time = time.time()
             self.feed_cache[topic] = message
             try:
-                pub_result = self.aio.send_data(topic, message)                
+                if True: # set False for testing without sending to AdaFruit
+                    pub_result = self.aio.send_data(topic, message)
                 # Data(created_epoch=1598796144, created_at='2020-08-30T14:02:24Z', updated_at=None, value='122', completed_at=None, feed_id=1404586, expiration='2020-10-29T14:02:24Z', position=None, id='0EH9YC6HB3M2YETZXNJS79D0HV', lat=None, lon=None, ele=None)
+                else:
+                    pub_result = Data(created_epoch=1598796144, created_at='2020-08-30T14:02:24Z', updated_at=None, value='122', completed_at=None, feed_id=1404586, expiration='2020-10-29T14:02:24Z', position=None, id='0EH9YC6HB3M2YETZXNJS79D0HV', lat=None, lon=None, ele=None)
             except RequestError:
                 logging.error("Exception: Got a RequestError for %s", topic)
             except ThrottlingError:

@@ -6,11 +6,12 @@ import time
 class Handler:
     NAME = "Handler"
 
-    def __init__(self, topic, metering_queue, messages_per_hour):
+    def __init__(self, topic, metering_queue, messages_per_hour, evaluate_topic):
         self.topic = topic
         self.metering_queue = metering_queue
         self.last_hour = time.localtime().tm_hour
         self.messages_per_hour = messages_per_hour
+        self.evaluate_topic = evaluate_topic
         self.message_count = 0
         self.messages_at_last_evaluate = 0
         self.time_of_last_evaluate = time.time()
@@ -37,6 +38,10 @@ class Handler:
         # we have seen {count} messages in {delta} seconds
         # if that is typical, how many would we see in an hour?
         hourly_rate = 60*60*count // delta
+
+        # for now
+        self.publish(self.evaluate_topic, f"{self.NAME} {count}")
+
         if 0 == self.messages_per_hour: # e.g. Ups
             if 0 < hourly_rate:
                 pass # unexpected
@@ -59,8 +64,8 @@ class Handler:
 class Garage(Handler):
     NAME = "Garage"
 
-    def __init__(self, topic, metering_queue, messages_per_hour):
-        Handler.__init__(self, topic, metering_queue, messages_per_hour)
+    def __init__(self, topic, metering_queue, messages_per_hour, evaluate_topic):
+        Handler.__init__(self, topic, metering_queue, messages_per_hour, evaluate_topic)
 
     def handle_json(self, json_string):
         super().handle_json(json_string)
@@ -76,8 +81,8 @@ class Garage(Handler):
 class Laser(Handler):
     NAME = "Laser"
 
-    def __init__(self, topic, metering_queue, messages_per_hour):
-        Handler.__init__(self, topic, metering_queue, messages_per_hour)
+    def __init__(self, topic, metering_queue, messages_per_hour, evaluate_topic):
+        Handler.__init__(self, topic, metering_queue, messages_per_hour, evaluate_topic)
 
     def handle_json(self, json_string):
         super().handle_json(json_string)
@@ -88,8 +93,8 @@ class Laser(Handler):
 class SoilProbe(Handler):
     NAME = "Soil Probe"
 
-    def __init__(self, topic, metering_queue, messages_per_hour):
-        Handler.__init__(self, topic, metering_queue, messages_per_hour)
+    def __init__(self, topic, metering_queue, messages_per_hour, evaluate_topic):
+        Handler.__init__(self, topic, metering_queue, messages_per_hour, evaluate_topic)
 
     def handle_json(self, json_string):
         super().handle_json(json_string)
@@ -100,8 +105,8 @@ class SoilProbe(Handler):
 
 class Waterer(Handler):
     NAME = "Washer"
-    def __init__(self, topic, metering_queue, messages_per_hour):
-        Handler.__init__(self, topic, metering_queue, messages_per_hour)
+    def __init__(self, topic, metering_queue, messages_per_hour, evaluate_topic):
+        Handler.__init__(self, topic, metering_queue, messages_per_hour, evaluate_topic)
 
     def handle_json(self, json_string):
         super().handle_json(json_string)
@@ -114,8 +119,8 @@ class Waterer(Handler):
 class Printer(Handler):
     NAME = "Printer"
 
-    def __init__(self, topic, metering_queue, messages_per_hour):
-        Handler.__init__(self, topic, metering_queue, messages_per_hour)
+    def __init__(self, topic, metering_queue, messages_per_hour, evaluate_topic):
+        Handler.__init__(self, topic, metering_queue, messages_per_hour, evaluate_topic)
 
     def handle_json(self, json_string):
         super().handle_json(json_string)
@@ -129,8 +134,8 @@ class Printer(Handler):
 class Washer(Handler):
     NAME = "Washer"
 
-    def __init__(self, topic, metering_queue, messages_per_hour):
-        Handler.__init__(self, topic, metering_queue, messages_per_hour)
+    def __init__(self, topic, metering_queue, messages_per_hour, evaluate_topic):
+        Handler.__init__(self, topic, metering_queue, messages_per_hour, evaluate_topic)
 
     def handle_json(self, json_string):
         super().handle_json(json_string)
@@ -141,23 +146,40 @@ class Washer(Handler):
         self.publish('h.washercurrent', data['ENERGY']['Current'])
         self.publish('h.washervoltage', data['ENERGY']['Voltage'])
 
+
 class CatFeeder(Handler):
     NAME = "CatFeeder"
 
-    def __init__(self, topic, metering_queue, messages_per_hour):
-        Handler.__init__(self, topic, metering_queue, messages_per_hour)
+    def __init__(self, topic, metering_queue, messages_per_hour, evaluate_topic):
+        Handler.__init__(self, topic, metering_queue, messages_per_hour, evaluate_topic)
 
     def handle_json(self, json_string):
         super().handle_json(json_string)
         data = json.loads(json_string)
         self.publish('h.cf', data['CFCount'])
 
+
 class Ups(Handler):
     NAME = "Ups"
 
-    def __init__(self, topic, metering_queue, messages_per_hour):
-        Handler.__init__(self, topic, metering_queue, messages_per_hour)
+    def __init__(self, topic, metering_queue, messages_per_hour, evaluate_topic):
+        Handler.__init__(self, topic, metering_queue, messages_per_hour, evaluate_topic)
 
     def handle_json(self, message): # not a json string
         super().handle_json(message)
         self.publish('h.ups', str(message, "utf-8"))
+
+
+class PumpHouse(Handler):
+    NAME = "PumpHouse"
+
+    def __init__(self, topic, metering_queue, messages_per_hour, evaluate_topic):
+        Handler.__init__(self, topic, metering_queue, messages_per_hour, evaluate_topic)
+
+    def handle_json(self, json_string):
+        super().handle_json(json_string)
+        data = json.loads(json_string)
+        self.publish('b.it', data['T0'])
+        self.publish('b.ot', data['T1'])
+        self.publish('b.rt', data['x'])
+        self.publish('b.ht', data['y'])

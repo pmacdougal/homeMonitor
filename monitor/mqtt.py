@@ -38,7 +38,7 @@ class MqttMonitor:
                 #print(f'MqttMonitor: send {msg.topic} to handler {t["handler"].name}')
                 try:
                     t["handler"].handle_json(msg.payload)
-                except JSONDecodeError:
+                except json.JSONDecodeError:
                     pass
                 break # break out of the loop early
 
