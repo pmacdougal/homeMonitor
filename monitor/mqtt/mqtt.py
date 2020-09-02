@@ -11,9 +11,11 @@ class MqttMonitor:
         self.client.on_message = self.on_message
         self.client.on_disconnect = self.on_disconnect
         self.topics = []
+        self.handlers = []
 
     def topic(self, handler):
         self.topics.append({"topic":handler.topic, "handler":handler})
+        self.handlers.append(handler)
 
     def on_connect(self, client, userdata, flags, result):
         logging.debug("MqttMonitor: connected with result code %s", result)

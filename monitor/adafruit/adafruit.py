@@ -1,7 +1,7 @@
 import logging
 import time
 import datetime
-from Adafruit_IO import Client
+from Adafruit_IO import Client, RequestError, ThrottlingError, AdafruitIOError
 
 
 class Adafruit:
