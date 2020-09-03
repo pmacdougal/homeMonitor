@@ -4,7 +4,7 @@ import logging
 import time
 import sys
 from monitor.mqtt import MqttMonitor
-from monitor.handler import Garage, Laser, SoilProbe, Waterer, Printer, Washer, CatFeeder, Ups, PumpHouse
+from monitor.handler import Garage, Laser, SoilProbe, Waterer, Printer, Washer, CatFeeder, Ups, PumpHouse, LoftTemp
 from monitor.adafruit import Adafruit
 from monitor.private import password
 # private.py is not part of the checked in code.  You will need to create it.
@@ -13,22 +13,23 @@ from monitor.private import password
 
 class Monitor:
     def __init__(self):
-        logging.basicConfig(level=logging.INFO)
-
+        # must be overridden
+        self.access = 'foo'
+        raise NotImplementedError
 
     def configure(self, mqtt_monitor, metering_queue):
         # must be overridden
         raise NotImplementedError
 
-    def run(self, msg, mqtt_ip):
+    def run(self, msg, topic, mqtt_ip):
         metering_queue = []
-        metering_queue.append({"topic": "h.mqtt", "message": msg})
+        metering_queue.append({"topic": topic, "message": msg})
 
         try:
-            aio = Adafruit('pmacdougal', password)
-            monitor = MqttMonitor(mqtt_ip)
-            self.configure(monitor, metering_queue) # configure device handlers
-            monitor.start()
+            aio = Adafruit('pmacdougal', password, self.access)
+            mqtt_monitor = MqttMonitor(mqtt_ip)
+            self.configure(mqtt_monitor, metering_queue) # configure device handlers
+            mqtt_monitor.start()
             last_min = time.localtime().tm_min
 
             while True:
@@ -36,7 +37,7 @@ class Monitor:
                     localtime = time.localtime()
                     if localtime.tm_min != last_min and 59 == localtime.tm_min:
                         # stuff to do once per hour (just before the hour strikes and the handlers clear their data)
-                        for h in monitor.handlers:
+                        for h in mqtt_monitor.handlers:
                             h.evaluate() # do a self evaluation
                     last_min = localtime.tm_min
 
@@ -49,8 +50,8 @@ class Monitor:
                         f = metering_queue[0].get("filter", True)
                         if 0 == aio.publish(t, m, filter=f): # if successful handling of this message
                             metering_queue.pop(0)
-                        else:
-                            time.sleep(5)
+                    else:
+                        time.sleep(5)
                 except Exception as e:
                     logging.error(f"Exception: {e}")
 
@@ -69,12 +70,23 @@ class Monitor:
             sys.stderr.flush()
             return(status)
 
+
 class Barn(Monitor):
+    def __init__(self):
+        logging.basicConfig(level=logging.INFO)
+        self.access = 'gprs'
+
     def configure(self, mqtt_monitor, metering_queue):
-        mqtt_monitor.topic(PumpHouse("tele/xxxx/SENSOR", metering_queue, 240, "s.mph"))
+        mqtt_monitor.topic(PumpHouse("tele/0dd92a/SENSOR", metering_queue, 240, "s.mph"))
+        #mqtt_monitor.topic(LoftTemp("tele/0dd096/SENSOR", metering_queue, 240, "s.mph"))
+        mqtt_monitor.topic(LoftTemp("tele/99e934/SENSOR", metering_queue, 240, "s.mph")) # use Garage to mimic LoftTemp during testing
 
 
 class Home(Monitor):
+    def __init__(self):
+        logging.basicConfig(level=logging.INFO)
+        self.access = 'rest'
+
     def configure(self, mqtt_monitor, metering_queue):
         mqtt_monitor.topic(Garage("tele/99e934/SENSOR", metering_queue, 240, "h.mph"))
         mqtt_monitor.topic(SoilProbe('tele/3154ff/SENSOR', metering_queue, 1, "h.mph"))

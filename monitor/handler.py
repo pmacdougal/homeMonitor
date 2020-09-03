@@ -155,5 +155,14 @@ class PumpHouse(Handler):
         data = json.loads(json_string)
         self.publish('s.it', data['T0'])
         self.publish('s.ot', data['T1'])
-        self.publish('s.rt', data['x'])
-        self.publish('s.ht', data['y'])
+        self.publish('s.ht', data['HT'])
+        self.publish('s.rt', data['RTCount'])
+
+
+class LoftTemp(Handler):
+    NAME = "LoftTemp"
+    
+    def handle_json(self, json_string):
+        super().handle_json(json_string)
+        data = json.loads(json_string)
+        self.publish('s.lt', data['T0'], filter=False)
