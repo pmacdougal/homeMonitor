@@ -70,23 +70,11 @@ class Monitor:
             return(status)
 
 class Barn(Monitor):
-    def __init__(self):
-        Monitor.__init__(self)
-
-    def run(self, msg, mqtt_ip):
-        Monitor.run(self, msg, mqtt_ip)
-
     def configure(self, mqtt_monitor, metering_queue):
-        mqtt_monitor.topic(PumpHouse("tele/xxxx/SENSOR", metering_queue, 240, "b.mph"))
+        mqtt_monitor.topic(PumpHouse("tele/xxxx/SENSOR", metering_queue, 240, "s.mph"))
 
 
 class Home(Monitor):
-    def __init__(self):
-        Monitor.__init__(self)
-
-    def run(self, msg, mqtt_ip):
-        Monitor.run(self, msg, mqtt_ip)
-
     def configure(self, mqtt_monitor, metering_queue):
         mqtt_monitor.topic(Garage("tele/99e934/SENSOR", metering_queue, 240, "h.mph"))
         mqtt_monitor.topic(SoilProbe('tele/3154ff/SENSOR', metering_queue, 1, "h.mph"))
