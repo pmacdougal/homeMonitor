@@ -213,7 +213,7 @@ class Gprs:
         elif self.match_response(b'+CREG: 0,5\r\n', GPRS_REG): # roaming
             self.registered = True
         elif self.is_prefix(b'+CSQ: ', pop=False):
-            temp = self.bytes[6:0].split(',')
+            temp = self.bytes[6:0].decode(encoding='UTF-8').split(',')
             signal = temp[0]
             if 1 == len(signal):
                 self.csq = ord(signal[0]) - ord(b'0')
@@ -226,7 +226,7 @@ class Gprs:
             # pop bytes until we get to the \r\n (what if it does not exist yet?)
             raise NotImplementedError
         elif self.is_prefix(b'+CCLK: "', pop=False):
-            temp = self.bytes[8:0].split(',') # yy/MM/dd,hh:mm:ss+zz
+            temp = self.bytes[8:0].decode(encoding='UTF-8').split(',') # yy/MM/dd,hh:mm:ss+zz
             # temp[0] is yy/MM/dd
             # temp[1] is hh:mm:ss+zz"\r\n
             logging.info("Time is %d", temp[1][0:-3])
