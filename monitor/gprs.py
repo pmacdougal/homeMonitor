@@ -231,12 +231,43 @@ class Gprs:
                 self.csq = 0
             logging.info("Signal quality is %d", self.csq)
             self.clear_to_end_of_line()
+            # match the response list
+            str_response = self.to_string(GPRS_SQ)
+            logging.debug("Gprs.match_response(): found %s line", str_response)
+            if 0 < len(self.response_list):
+                if GPRS_SQ == self.response_list[0]:
+                    logging.debug(f'remove {str_response} from response_list')
+                    self.response_list.pop(0)
+                    return True
+                else:
+                    logging.error('Gprs.match_response(): found %s line where %s was expected', str_response, self.to_string(self.response_list[0]))
+                    # What do we do now?
+                    self.state = GPRS_FOO
+
         elif self.is_prefix(b'+CCLK: "', pop=False):
             temp = self.bytes[8:].decode(encoding='UTF-8').split(',') # yy/MM/dd,hh:mm:ss+zz
             # temp[0] is yy/MM/dd
             # temp[1] is hh:mm:ss+zz"\r\n
             logging.info("Time is %s", temp[1][0:-3])
             self.clear_to_end_of_line()
+            # match the response list
+            str_response = self.to_string(GPRS_CLK)
+            logging.debug("Gprs.match_response(): found %s line", str_response)
+            if 0 < len(self.response_list):
+                if GPRS_CLK == self.response_list[0]:
+                    logging.debug(f'remove {str_response} from response_list')
+                    self.response_list.pop(0)
+                    return True
+                else:
+                    logging.error('Gprs.match_response(): found %s line where %s was expected', str_response, self.to_string(self.response_list[0]))
+                    # What do we do now?
+                    self.state = GPRS_FOO
+
+            else:
+                # got a blank line while not expecting any response
+                logging.error('Gprs.match_response(): found blank line where nothing was expected')
+
+
         #elif self.match_response(b'ERROR\r\n', GPRS_ERROR):
         #    pass
         else:
