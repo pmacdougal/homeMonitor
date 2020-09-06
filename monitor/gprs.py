@@ -153,7 +153,8 @@ class Gprs:
             return False
 
         # try to match the response (we could refactor relative to self.command)
-        logging.info(f'process_bytes {self.bytes}')
+        logging.info(f'process_bytes {self.lines_of_response} - {self.bytes}')
+        self.lines_of_response += 1
         if self.match_response(b'\r\n', GPRS_BLANK):
             pass
         elif self.is_prefix(b'AT+', pop=False):
@@ -313,6 +314,7 @@ class Gprs:
         self.timeout = timeout
         self.next_state = next_state
         self.radio_busy = True
+        self.lines_of_response = 0
         self.ser.write(command)
         self.ser.write(b'\r\n')
         if len(bytes):
