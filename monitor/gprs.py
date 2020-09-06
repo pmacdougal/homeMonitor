@@ -151,10 +151,19 @@ class Gprs:
         logging.info('process_bytes')
         if self.match_response(b'\r\n', GPRS_BLANK):
             pass
+        elif self.is_prefix(b'AT+', pop=False):
+            logging.info(f"got AT+ prefix {self.command}")
+            if self.match_response(b'AT+CGNSTST=0\r\r\n', GPRS_ECHO):
+                pass
+            else:
+                logging.error("AT prefix, but not AT\\r\\r\\n")
+                return False
         elif self.is_prefix(b'AT', pop=False):
-            logging.info('got AT prefix')
             if self.match_response(b'AT\r\r\n', GPRS_ECHO):
                 pass
+            else:
+                logging.error("AT prefix, but not AT\\r\\r\\n")
+                return False
         elif self.match_response(b'OK\r\n', GPRS_OK):
             pass
         elif self.match_response(b'IP START\r\n', GPRS_IP_READY):
