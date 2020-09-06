@@ -205,9 +205,11 @@ class Gprs:
             self.call_ready = False
         elif self.match_response(b'+CCALR: 1\r\n', GPRS_CALR):
             self.call_ready = True
-        elif self.match_response(b'+CREG: 0,1\r\n', GPRS_REG):
+        elif self.match_response(b'+CREG: 0,0\r\n', GPRS_REG):
             self.registered = False
-        elif self.match_response(b'+CREG: 1,1\r\n', GPRS_REG):
+        elif self.match_response(b'+CREG: 0,1\r\n', GPRS_REG):
+            self.registered = True
+        elif self.match_response(b'+CREG: 0,5\r\n', GPRS_REG): # roaming
             self.registered = True
         elif self.is_prefix(b'+CSQ: ', pop=False):
             temp = self.bytes[6:0].split(',')
@@ -222,9 +224,6 @@ class Gprs:
             # pop bytes until we get to the \r\n (what if it does not exist yet?)
             xxx
 
-
-        #elif self.match_response(b'+CREG: 5\r\n', GPRS_REG): # roaming, I think
-        #    self.registered = True
         #elif self.match_response(b'ERROR\r\n', GPRS_ERROR):
         #    pass
         else:
