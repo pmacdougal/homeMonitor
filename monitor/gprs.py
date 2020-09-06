@@ -9,16 +9,14 @@ GPRS_INITIAL = 1
 GPRS_POWERING_UP = 2
 GPRS_DISABLE_GPS = 3
 GPRS_IP_READY = 4
-
-GPRS_SECOND_AT = 6
-GPRS_MEE = 7
-GPRS_IPSPRT = 8
-GPRS_CALL_READY = 9
-GPRS_REGISTERED = 10
-GPRS_CLK = 11
-GPRS_TIME = 12
-GPRS_CSQ = 13
-GPRS_IPSHUT = 14
+GPRS_SECOND_AT = 5
+GPRS_MEE = 6
+GPRS_IPSPRT = 7
+GPRS_CALL_READY = 8
+GPRS_REGISTERED = 9
+GPRS_CLK = 10
+GPRS_CSQ = 11
+GPRS_IPSHUT = 12
 
 
 # responses
@@ -31,6 +29,8 @@ GPRS_CALR = 55
 GPRS_REG = 56
 GPRS_SQ = 57
 GPRS_SHUTOK = 58
+GPRS_TIME = 59
+
 
 class Gprs:
     def __init__(self, port):
@@ -79,6 +79,8 @@ class Gprs:
             return 'SQ'
         elif (GPRS_SHUTOK == token):
             return 'SHUT OK'
+        elif (GPRS_TIME == token):
+            return 'TIME'
             
 
         elif (GPRS_INITIAL == token):
@@ -101,8 +103,6 @@ class Gprs:
             return 'GPRS_REGISTERED'
         elif (GPRS_CLK == token):
             return 'GPRS_CLK'
-        elif (GPRS_TIME == token):
-            return 'GPRS_TIME'
         elif (GPRS_CSQ == token):
             return 'GPRS_CSQ'
         elif (GPRS_IPSHUT == token):
@@ -251,10 +251,10 @@ class Gprs:
             logging.info("Time is %s", temp[1][0:-3])
             self.clear_to_end_of_line()
             # match the response list
-            str_response = self.to_string(GPRS_CLK)
+            str_response = self.to_string(GPRS_TIME)
             logging.debug("Gprs.match_response(): found %s line", str_response)
             if 0 < len(self.response_list):
-                if GPRS_CLK == self.response_list[0]:
+                if GPRS_TIME == self.response_list[0]:
                     logging.debug(f'remove {str_response} from response_list')
                     self.response_list.pop(0)
                     return True
