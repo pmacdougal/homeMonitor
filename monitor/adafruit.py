@@ -2,7 +2,7 @@ import logging
 import time
 import datetime
 from Adafruit_IO import Client, MQTTClient, RequestError, ThrottlingError, AdafruitIOError, Data
-from .gprs import GPRS
+from .gprs import Gprs
 
 class Adafruit:
     def __init__(self, username, password, access):
@@ -27,7 +27,7 @@ class Adafruit:
             else:
                 self.aio.loop_background()
         elif 'gprs' == self.access:
-            self.gprs = GPRS()
+            self.gprs = Gprs('/dev/ttyS0')
         else:
             logging.error("access method %s is not defined", self.access)
             raise NotImplementedError
