@@ -222,13 +222,21 @@ class Gprs:
             else:
                 logging.error("This is unexpected.  len(signal) is %s", len(signal))
                 self.csq = 0
+            logging.info("Signal quality is %d", self.csq)
             # pop bytes until we get to the \r\n (what if it does not exist yet?)
-            xxx
-
+            raise NotImplementedError
+        elif self.is_prefix(b'+CCLK: "', pop=False):
+            temp = self.bytes[8:0].split(',') # yy/MM/dd,hh:mm:ss+zz
+            # temp[0] is yy/MM/dd
+            # temp[1] is hh:mm:ss+zz"\r\n
+            logging.info("Time is %d", temp[1][0:-3])
+            # pop bytes until we get to the \r\n (what if it does not exist yet?)
+            raise NotImplementedError
         #elif self.match_response(b'ERROR\r\n', GPRS_ERROR):
         #    pass
         else:
             logging.error('Gprs.process_bytes(): write code to handle %s', self.bytes)
+            raise NotImplementedError
             return False
 
         return True
