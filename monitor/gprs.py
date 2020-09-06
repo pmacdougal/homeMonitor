@@ -142,6 +142,12 @@ class Gprs:
                 logging.error('Gprs.match_response(): found blank line where nothing was expected')
         return False
 
+    def clear_to_end_of_line(self):
+        pos = self.bytes.find(b'\r\n')
+        if -1 == pos:
+            raise NotImplementedError
+        self.bytes = self.bytes[pos:]
+       
     # match bytes from the radio with expected responses
     def process_bytes(self):
         # if there is no response from radio, just return
@@ -223,20 +229,19 @@ class Gprs:
                 logging.error("This is unexpected.  len(signal) is %s", len(signal))
                 self.csq = 0
             logging.info("Signal quality is %d", self.csq)
-            # pop bytes until we get to the \r\n (what if it does not exist yet?)
-            raise NotImplementedError
+            self.clear_to_end_of_line()
         elif self.is_prefix(b'+CCLK: "', pop=False):
             temp = self.bytes[8:0].decode(encoding='UTF-8').split(',') # yy/MM/dd,hh:mm:ss+zz
             # temp[0] is yy/MM/dd
             # temp[1] is hh:mm:ss+zz"\r\n
-            logging.info("Time is %d", temp[1][0:-3])
-            # pop bytes until we get to the \r\n (what if it does not exist yet?)
-            raise NotImplementedError
+            logging.info("Time is %s", temp[1][0:-3])
+            self.clear_to_end_of_line()
         #elif self.match_response(b'ERROR\r\n', GPRS_ERROR):
         #    pass
         else:
             logging.error('Gprs.process_bytes(): write code to handle %s', self.bytes)
             raise NotImplementedError
+            #self.clear_to_end_of_line()
             return False
 
         return True
