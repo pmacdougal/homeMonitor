@@ -51,7 +51,7 @@ class Monitor:
                         if 0 == aio.publish(t, m, filter=f): # if successful handling of this message
                             metering_queue.pop(0)
                     else:
-                        time.sleep(5)
+                        aio.loop()
                 except Exception as e:
                     logging.error(f"Exception: {e}")
 

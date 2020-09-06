@@ -2,6 +2,7 @@ import logging
 import time
 import datetime
 from Adafruit_IO import Client, MQTTClient, RequestError, ThrottlingError, AdafruitIOError, Data
+from .gprs import GPRS
 
 class Adafruit:
     def __init__(self, username, password, access):
@@ -26,7 +27,7 @@ class Adafruit:
             else:
                 self.aio.loop_background()
         elif 'gprs' == self.access:
-            pass
+            self.gprs = GPRS()
         else:
             logging.error("access method %s is not defined", self.access)
             raise NotImplementedError
@@ -41,6 +42,18 @@ class Adafruit:
 
     def mqtt_message(self, client, topic, payload):
         logging.info("Adafruit.mqtt_message(): got message %s with value %s.", topic, payload)
+
+    def loop(self):
+        if 'rest' == self.access:
+            time.sleep(1)
+        elif 'mqtt' == self.access:
+            time.sleep(1)
+        elif 'gprs' == self.access:
+            # let radio process serial data
+            self.gprs.loop()
+        else:
+            logging.error("access method %s is not defined", self.access)
+            raise NotImplementedError
 
     def publish(self, topic, message, *, filter=True):
         # Once an hour, empty the feed cache
@@ -58,23 +71,31 @@ class Adafruit:
             if delta < self.period:
                 time.sleep(self.period - delta)
 
-            logging.debug("Adafruit: publish %s to %s", message, topic)
             self.last_publish_time = time.time()
             self.feed_cache[topic] = message
             try:
                 when = datetime.datetime.now()
                 if True: # set False for testing without sending to AdaFruit
                     if 'rest' == self.access:
+                        logging.debug("Adafruit: publish %s to %s", message, topic)
                         pub_result = self.aio.send_data(topic, message)
                         # Data(created_epoch=1598796144, created_at='2020-08-30T14:02:24Z', updated_at=None, value='122', completed_at=None, feed_id=1404586, expiration='2020-10-29T14:02:24Z', position=None, id='0EH9YC6HB3M2YETZXNJS79D0HV', lat=None, lon=None, ele=None)
                         when = pub_result.created_at
                     elif 'mqtt' == self.access:
                         if self.aio.is_connected():
+                            logging.debug("Adafruit: publish %s to %s", message, topic)
                             self.aio.publish(topic, message)
                         else:
                             pass
                     elif 'gprs' == self.access:
-                        pass
+                        # allow radio to process serial data
+                        self.gprs.loop()
+                        # see if radio is ready for data
+                        if self.gprs.is_ready():
+                            logging.debug("Adafruit: publish %s to %s", message, topic)
+                            self.gprs.publish(topic, message)
+                        else:
+                            return 1 # unsuccessful processing of this message
                     else:
                         logging.error("access method %s is not defined", self.access)
                         raise NotImplementedError
