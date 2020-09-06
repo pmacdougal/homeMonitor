@@ -124,7 +124,7 @@ class Gprs:
             str_response = self.to_string(response)
             logging.debug("Gprs.match_response(): found %s line", str_response)
             if 0 < len(self.response_list):
-                if response != self.response_list[0]:
+                if response == self.response_list[0]:
                     self.response_list.pop()
                     return True
                 else:
@@ -148,15 +148,14 @@ class Gprs:
             return False
 
         # try to match the response (we could refactor relative to self.command)
-        logging.info('process_bytes')
+        logging.info(f'process_bytes {self.bytes}')
         if self.match_response(b'\r\n', GPRS_BLANK):
             pass
         elif self.is_prefix(b'AT+', pop=False):
-            logging.info(f"got AT+ prefix {self.command}")
-            if self.match_response(b'AT+CGNSTST=0\r\r\n', GPRS_ECHO):
+            if self.match_response(self.command + b'\r\r\n', GPRS_ECHO):
                 pass
             else:
-                logging.error("AT prefix, but not AT\\r\\r\\n")
+                logging.info(f"got AT+ prefix but not {self.command}\\r\\r\\n")
                 return False
         elif self.is_prefix(b'AT', pop=False):
             if self.match_response(b'AT\r\r\n', GPRS_ECHO):
@@ -196,12 +195,12 @@ class Gprs:
             # waitCONNACK()
             pass
         elif self.match_response(b'+CCALR: 0\r\n', GPRS_CALR):
-            pass
+            self.call_ready = False
         elif self.match_response(b'+CCALR: 1\r\n', GPRS_CALR):
             self.call_ready = True
-        elif self.match_response(b'+CREG: 0\r\n', GPRS_REG):
-            pass
-        elif self.match_response(b'+CREG: 1\r\n', GPRS_REG):
+        elif self.match_response(b'+CREG: 0,1\r\n', GPRS_REG):
+            self.registered = False
+        elif self.match_response(b'+CREG: 1,1\r\n', GPRS_REG):
             self.registered = True
         elif self.is_prefix(b'+CSQ: ', pop=False):
             temp = self.bytes[6:0].split(',')
@@ -256,7 +255,7 @@ class Gprs:
                         logging.error('Unable to open serial port %s', self.port)
                     else:
                         # Send a command to the radio to see if it is working
-                        self.send_command(b'AT', (), [GPRS_BLANK, GPRS_OK], 5, GPRS_DISABLE_GPS)
+                        self.send_command(b'AT', (), [GPRS_ECHO, GPRS_OK], 5, GPRS_DISABLE_GPS)
 
             elif GPRS_POWERING_UP == self.state:
                 if 3 <= (time.time() - self.start_time):
@@ -265,37 +264,37 @@ class Gprs:
                     self.state = GPRS_INITIAL
 
             elif GPRS_DISABLE_GPS == self.state:
-                self.send_command(b'AT+CGNSTST=0', (), [GPRS_BLANK, GPRS_OK], 0.5, GPRS_SECOND_AT)
+                self.send_command(b'AT+CGNSTST=0', (), [GPRS_ECHO, GPRS_OK], 0.5, GPRS_SECOND_AT)
             elif GPRS_SECOND_AT == self.state:
-                self.send_command(b'AT', (), [GPRS_BLANK, GPRS_OK], 0.5, GPRS_MEE)
+                self.send_command(b'AT', (), [GPRS_ECHO, GPRS_OK], 0.5, GPRS_MEE)
             elif GPRS_MEE == self.state:
-                self.send_command(b'AT+CMEE=1', (), [GPRS_BLANK, GPRS_OK], 0.5, GPRS_IPSPRT)
+                self.send_command(b'AT+CMEE=1', (), [GPRS_ECHO, GPRS_OK], 0.5, GPRS_IPSPRT)
             elif GPRS_IPSPRT == self.state:
                 self.call_ready = False
-                self.send_command(b'AT+CIPSPRT=0', (), [GPRS_BLANK, GPRS_OK], 0.5, GPRS_CALL_READY)
+                self.send_command(b'AT+CIPSPRT=0', (), [GPRS_ECHO, GPRS_OK], 0.5, GPRS_CALL_READY)
             elif GPRS_CALL_READY == self.state:
                 if self.call_ready:
                     self.state = GPRS_REGISTERED
                     self.registered = False
                 else:
-                    self.send_command(b'AT+CCALR?', (), [GPRS_BLANK, GPRS_CALR], 0.5, GPRS_CALL_READY)
+                    self.send_command(b'AT+CCALR?', (), [GPRS_ECHO, GPRS_CALR, GPRS_BLANK, GPRS_OK], 0.5, GPRS_CALL_READY)
             elif GPRS_REGISTERED == self.state:
                 if self.registered:
                     self.state = GPRS_CLK
                 else:
-                    self.send_command(b'AT+CREG?', (), [GPRS_BLANK, GPRS_REG], 0.5, GPRS_REGISTERED)
+                    self.send_command(b'AT+CREG?', (), [GPRS_ECHO, GPRS_REG], 0.5, GPRS_REGISTERED)
             elif GPRS_CLK == self.state:
                 self.signal = 0
-                self.send_command(b'AT+CCLK?', (), [GPRS_BLANK, GPRS_TIME], 0.5, GPRS_CSQ)
+                self.send_command(b'AT+CCLK?', (), [GPRS_ECHO, GPRS_TIME], 0.5, GPRS_CSQ)
             elif GPRS_CSQ == self.state:
                 if 4 < self.signal:
                     self.state = GPRS_IPSHUT
                 else:
-                    self.send_command(b'AT+CSQ', (), [GPRS_BLANK, GPRS_OK, GPRS_BLANK, GPRS_SQ], 0.5, GPRS_CSQ)
+                    self.send_command(b'AT+CSQ', (), [GPRS_ECHO, GPRS_SQ, GPRS_BLANK, GPRS_OK], 0.5, GPRS_CSQ)
             elif GPRS_IPSHUT == self.state:
-                self.send_command(b'AT+CIPSHUT', (), [GPRS_BLANK, GPRS_OK], 15, GPRS_IP_READY)
+                self.send_command(b'AT+CIPSHUT', (), [GPRS_ECHO, GPRS_OK], 15, GPRS_IP_READY)
             elif GPRS_IP_READY == self.state:
-                self.send_command(b'AT+CIPSTATUS', (), [GPRS_BLANK, GPRS_OK, GPRS_BLANK, GPRS_IPSTATUS], 0.5, GPRS_IP_READY)
+                self.send_command(b'AT+CIPSTATUS', (), [GPRS_ECHO, GPRS_IPSTATUS, GPRS_BLANK, GPRS_OK], 0.5, GPRS_IP_READY)
 
             else:
                 # unknown state
