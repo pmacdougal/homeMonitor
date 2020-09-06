@@ -10,6 +10,16 @@ GPRS_POWERING_UP = 2
 GPRS_DISABLE_GPS = 3
 GPRS_IP_READY = 4
 GPRS_DISABLE_GPS = 5
+GPRS_SECOND_AT = 6
+GPRS_MEE = 7
+GPRS_IPSPRT = 8
+GPRS_CALL_READY = 9
+GPRS_REGISTERED = 10
+GPRS_CLK = 11
+GPRS_TIME = 12
+GPRS_CSQ = 13
+GPRS_IPSHUT = 14
+
 
 # responses
 GPRS_BLANK = 50
@@ -19,6 +29,7 @@ GPRS_ERROR = 53
 GPRS_IPSTATUS = 54
 GPRS_CALR = 55
 GPRS_REG = 56
+GPRS_SQ = 57
 
 class Gprs:
     def __init__(self, port):
@@ -57,6 +68,15 @@ class Gprs:
             return 'ERROR'
         elif (GPRS_ECHO == token):
             return f"AT+C{self.command}"
+        elif (GPRS_IPSTATUS):
+            return 'IP STATUS'
+        elif (GPRS_CALR):
+            return 'CALR'
+        elif (GPRS_REG):
+            return 'REG'
+        elif (GPRS_SQ):
+            return 'SQ'
+
         elif (GPRS_INITIAL):
             return 'GPRS_INITIAL'
         elif (GPRS_POWERING_UP):
@@ -65,6 +85,24 @@ class Gprs:
             return 'GPRS_DISABLE_GPS'
         elif (GPRS_FOO):
             return 'GPRS_FOO'
+        elif (GPRS_SECOND_AT):
+            return 'GPRS_SECOND_AT'
+        elif (GPRS_MEE):
+            return 'GPRS_MEE'
+        elif (GPRS_IPSPRT):
+            return 'GPRS_IPSPRT'
+        elif (GPRS_CALL_READY):
+            return 'GPRS_CALL_READY'
+        elif (GPRS_REGISTERED):
+            return 'GPRS_REGISTERED'
+        elif (GPRS_CLK):
+            return 'GPRS_CLK'
+        elif (GPRS_TIME):
+            return 'GPRS_TIME'
+        elif (GPRS_CSQ):
+            return 'GPRS_CSQ'
+        elif (GPRS_IPSHUT):
+            return 'GPRS_IPSHUT'
         elif (GPRS_IP_READY):
             return 'GPRS_IP_READY'
         else:
@@ -238,7 +276,7 @@ class Gprs:
             elif GPRS_IPSHUT == self.state:
                 self.send_command('AT+CIPSHUT', (), [GPRS_BLANK, GPRS_OK], 15, GPRS_IP_READY)
             elif GPRS_IP_READY == self.state:
-                self.send_command('AT+CIPSTATUS', (), [GPRS_BLANK, GPRS_OK, GPRS_BLANK, GPRS_IPSTATUS], 0.5)
+                self.send_command('AT+CIPSTATUS', (), [GPRS_BLANK, GPRS_OK, GPRS_BLANK, GPRS_IPSTATUS], 0.5, GPRS_IP_READY)
 
             else:
                 # unknown state
