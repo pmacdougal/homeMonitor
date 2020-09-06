@@ -30,6 +30,7 @@ GPRS_IPSTATUS = 54
 GPRS_CALR = 55
 GPRS_REG = 56
 GPRS_SQ = 57
+GPRS_SHUTOK = 58
 
 class Gprs:
     def __init__(self, port):
@@ -76,6 +77,9 @@ class Gprs:
             return 'REG'
         elif (GPRS_SQ == token):
             return 'SQ'
+        elif (GPRS_SHUTOK == token):
+            return 'SHUT OK'
+            
 
         elif (GPRS_INITIAL == token):
             return 'GPRS_INITIAL'
@@ -125,6 +129,7 @@ class Gprs:
             logging.debug("Gprs.match_response(): found %s line", str_response)
             if 0 < len(self.response_list):
                 if response == self.response_list[0]:
+                    logging.debug(f'remove {str_response} from response_list')
                     self.response_list.pop()
                     return True
                 else:
@@ -164,6 +169,8 @@ class Gprs:
                 logging.error("AT prefix, but not AT\\r\\r\\n")
                 return False
         elif self.match_response(b'OK\r\n', GPRS_OK):
+            pass
+        elif self.match_response(b'SHUT OK\r\n', GPRS_SHUTOK):
             pass
         elif self.match_response(b'IP START\r\n', GPRS_IP_READY):
             # sendATCommand("AT+CIICR", 2, 65.0)
@@ -282,17 +289,17 @@ class Gprs:
                 if self.registered:
                     self.state = GPRS_CLK
                 else:
-                    self.send_command(b'AT+CREG?', (), [GPRS_ECHO, GPRS_REG], 0.5, GPRS_REGISTERED)
+                    self.send_command(b'AT+CREG?', (), [GPRS_ECHO, GPRS_REG, GPRS_BLANK, GPRS_OK], 0.5, GPRS_REGISTERED)
             elif GPRS_CLK == self.state:
                 self.signal = 0
-                self.send_command(b'AT+CCLK?', (), [GPRS_ECHO, GPRS_TIME], 0.5, GPRS_CSQ)
+                self.send_command(b'AT+CCLK?', (), [GPRS_ECHO, GPRS_TIME, GPRS_BLANK, GPRS_OK], 0.5, GPRS_CSQ)
             elif GPRS_CSQ == self.state:
                 if 4 < self.signal:
                     self.state = GPRS_IPSHUT
                 else:
                     self.send_command(b'AT+CSQ', (), [GPRS_ECHO, GPRS_SQ, GPRS_BLANK, GPRS_OK], 0.5, GPRS_CSQ)
             elif GPRS_IPSHUT == self.state:
-                self.send_command(b'AT+CIPSHUT', (), [GPRS_ECHO, GPRS_OK], 15, GPRS_IP_READY)
+                self.send_command(b'AT+CIPSHUT', (), [GPRS_ECHO, GPRS_SHUTOK], 15, GPRS_IP_READY)
             elif GPRS_IP_READY == self.state:
                 self.send_command(b'AT+CIPSTATUS', (), [GPRS_ECHO, GPRS_IPSTATUS, GPRS_BLANK, GPRS_OK], 0.5, GPRS_IP_READY)
 
