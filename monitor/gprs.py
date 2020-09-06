@@ -144,9 +144,10 @@ class Gprs:
 
     def clear_to_end_of_line(self):
         pos = self.bytes.find(b'\r\n')
+        logging.info("%s End of line is at %d", self.bytes, pos)
         if -1 == pos:
             raise NotImplementedError
-        self.bytes = self.bytes[pos:]
+        self.bytes = self.bytes[pos+2:]
        
     # match bytes from the radio with expected responses
     def process_bytes(self):
@@ -219,7 +220,7 @@ class Gprs:
         elif self.match_response(b'+CREG: 0,5\r\n', GPRS_REG): # roaming
             self.registered = True
         elif self.is_prefix(b'+CSQ: ', pop=False):
-            temp = self.bytes[6:0].decode(encoding='UTF-8').split(',')
+            temp = self.bytes[6:].decode(encoding='UTF-8').split(',')
             signal = temp[0]
             if 1 == len(signal):
                 self.csq = ord(signal[0]) - ord(b'0')
@@ -231,7 +232,7 @@ class Gprs:
             logging.info("Signal quality is %d", self.csq)
             self.clear_to_end_of_line()
         elif self.is_prefix(b'+CCLK: "', pop=False):
-            temp = self.bytes[8:0].decode(encoding='UTF-8').split(',') # yy/MM/dd,hh:mm:ss+zz
+            temp = self.bytes[8:].decode(encoding='UTF-8').split(',') # yy/MM/dd,hh:mm:ss+zz
             # temp[0] is yy/MM/dd
             # temp[1] is hh:mm:ss+zz"\r\n
             logging.info("Time is %s", temp[1][0:-3])
