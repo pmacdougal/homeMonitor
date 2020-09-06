@@ -9,7 +9,7 @@ GPRS_INITIAL = 1
 GPRS_POWERING_UP = 2
 GPRS_DISABLE_GPS = 3
 GPRS_IP_READY = 4
-GPRS_DISABLE_GPS = 5
+
 GPRS_SECOND_AT = 6
 GPRS_MEE = 7
 GPRS_IPSPRT = 8
@@ -67,54 +67,55 @@ class Gprs:
         elif (GPRS_ERROR == token):
             return 'ERROR'
         elif (GPRS_ECHO == token):
-            return f"AT+C{self.command}"
-        elif (GPRS_IPSTATUS):
+            return self.command
+        elif (GPRS_IPSTATUS == token):
             return 'IP STATUS'
-        elif (GPRS_CALR):
+        elif (GPRS_CALR == token):
             return 'CALR'
-        elif (GPRS_REG):
+        elif (GPRS_REG == token):
             return 'REG'
-        elif (GPRS_SQ):
+        elif (GPRS_SQ == token):
             return 'SQ'
 
-        elif (GPRS_INITIAL):
+        elif (GPRS_INITIAL == token):
             return 'GPRS_INITIAL'
-        elif (GPRS_POWERING_UP):
+        elif (GPRS_POWERING_UP == token):
             return 'GPRS_POWERING_UP'
-        elif (GPRS_DISABLE_GPS):
+        elif (GPRS_DISABLE_GPS == token):
             return 'GPRS_DISABLE_GPS'
-        elif (GPRS_FOO):
+        elif (GPRS_FOO == token):
             return 'GPRS_FOO'
-        elif (GPRS_SECOND_AT):
+        elif (GPRS_SECOND_AT == token):
             return 'GPRS_SECOND_AT'
-        elif (GPRS_MEE):
+        elif (GPRS_MEE == token):
             return 'GPRS_MEE'
-        elif (GPRS_IPSPRT):
+        elif (GPRS_IPSPRT == token):
             return 'GPRS_IPSPRT'
-        elif (GPRS_CALL_READY):
+        elif (GPRS_CALL_READY == token):
             return 'GPRS_CALL_READY'
-        elif (GPRS_REGISTERED):
+        elif (GPRS_REGISTERED == token):
             return 'GPRS_REGISTERED'
-        elif (GPRS_CLK):
+        elif (GPRS_CLK == token):
             return 'GPRS_CLK'
-        elif (GPRS_TIME):
+        elif (GPRS_TIME == token):
             return 'GPRS_TIME'
-        elif (GPRS_CSQ):
+        elif (GPRS_CSQ == token):
             return 'GPRS_CSQ'
-        elif (GPRS_IPSHUT):
+        elif (GPRS_IPSHUT == token):
             return 'GPRS_IPSHUT'
-        elif (GPRS_IP_READY):
+        elif (GPRS_IP_READY == token):
             return 'GPRS_IP_READY'
         else:
             return 'unknown'
 
     # see if the string parameter is at the beginning of the recieved bytes from the radio
     def is_prefix(self, string, *, pop=False):
-        if string == self.bytes[0:len(string)-1]:
+        if string == self.bytes[0:len(string)]:
             if (pop):
                 self.bytes = self.bytes[len(string):]
             return True
         else:
+            #logging.info(f"{string} is not a prefix of {self.bytes}")
             return False
 
     # see if the radio responded with the expected response
@@ -143,6 +144,7 @@ class Gprs:
             return False
 
         if not b'\r\n' in self.bytes:
+            logging.info('partial line detected')
             return False
 
         # try to match the response (we could refactor relative to self.command)
@@ -150,6 +152,7 @@ class Gprs:
         if self.match_response(b'\r\n', GPRS_BLANK):
             pass
         elif self.is_prefix(b'AT', pop=False):
+            logging.info('got AT prefix')
             if self.match_response(b'AT\r\r\n', GPRS_ECHO):
                 pass
         elif self.match_response(b'OK\r\n', GPRS_OK):
@@ -211,7 +214,9 @@ class Gprs:
         #    pass
         else:
             logging.error('Gprs.process_bytes(): write code to handle %s', self.bytes)
-        return False
+            return False
+
+        return True
 
     def loop(self):
         self.check_input()
@@ -219,6 +224,7 @@ class Gprs:
             if 0 == len(self.response_list):
                 # we have satisfied the expected response for the command
                 # now what?
+                logging.info("command satisfied. Radio idle. Next state %s", self.to_string(self.next_state))
                 self.radio_busy = False
                 self.state = self.next_state
 
