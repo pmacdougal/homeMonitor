@@ -130,7 +130,7 @@ class Gprs:
             if 0 < len(self.response_list):
                 if response == self.response_list[0]:
                     logging.debug(f'remove {str_response} from response_list')
-                    self.response_list.pop()
+                    self.response_list.pop(0)
                     return True
                 else:
                     logging.error('Gprs.match_response(): found %s line where %s was expected', str_response, self.to_string(self.response_list[0]))
