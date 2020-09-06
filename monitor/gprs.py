@@ -294,7 +294,7 @@ class Gprs:
         self.next_state = next_state
         self.radio_busy = True
         self.ser.write(command)
-        self.ser.write('\r\n')
+        self.ser.write(b'\r\n')
         if len(bytes):
             time.sleep(0.5)
             self.ser.write(bytes)
