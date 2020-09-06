@@ -10,7 +10,7 @@ def main():
     else:
         barn = Barn()
         hostname = gethostname()
-        barn.run(f"start Barn from {hostname}", "s.mqtt", "192.168.2.30")
+        barn.run(f"start Barn from {hostname}", "s.mqtt", "192.168.2.32")
 
 # This is not a module, so run the main routine when executed
 if __name__ == '__main__':

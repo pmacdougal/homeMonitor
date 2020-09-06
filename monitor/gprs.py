@@ -38,7 +38,7 @@ class Gprs:
         self.next_state = GPRS_FOO
         self.radio_busy = False
         self.ser = None
-        self.bytes = ()
+        self.bytes = b''
         self.timeout = 0
         self.response_list = []
         self.command = ''
@@ -55,7 +55,7 @@ class Gprs:
     def check_input(self):
         if None != self.ser and 0 < self.ser.in_waiting:
             self.ser.timeout = self.timeout
-            newbytes = self.ser.read_until(terminator='\r\n')
+            newbytes = self.ser.read_until(terminator=b'\r\n')
             self.bytes += newbytes
 
     # convert constants to string representations
@@ -142,52 +142,56 @@ class Gprs:
         if (0 == len(self.bytes)):
             return False
 
-        if not '\r\n' in self.bytes:
+        if not b'\r\n' in self.bytes:
             return False
 
         # try to match the response (we could refactor relative to self.command)
-        if self.match_response('\r\n', GPRS_BLANK):
+        logging.info('process_bytes')
+        if self.match_response(b'\r\n', GPRS_BLANK):
             pass
-        elif self.match_response('OK\r\n', GPRS_OK):
+        elif self.is_prefix(b'AT', pop=False):
+            if self.match_response(b'AT\r\r\n', GPRS_ECHO):
+                pass
+        elif self.match_response(b'OK\r\n', GPRS_OK):
             pass
-        elif self.match_response('IP START\r\n', GPRS_IP_READY):
+        elif self.match_response(b'IP START\r\n', GPRS_IP_READY):
             # sendATCommand("AT+CIICR", 2, 65.0)
             pass
-        elif self.match_response('IP INITIAL\r\n', GPRS_IP_READY):
+        elif self.match_response(b'IP INITIAL\r\n', GPRS_IP_READY):
             #sendATCommand("AT+CSTT=\"m2mglobal\"", 2, 0.5)
             pass
-        elif self.match_response('IP GPRSACT\r\n', GPRS_IP_READY):
+        elif self.match_response(b'IP GPRSACT\r\n', GPRS_IP_READY):
             #sendATCommand("AT+CIFSR", 2, 2.5)
             pass
-        elif self.match_response('IP STATUS\r\n', GPRS_IP_READY):
+        elif self.match_response(b'IP STATUS\r\n', GPRS_IP_READY):
             #sendATCommand("AT+CIPSTART=\"TCP\",\"io.adafruit.com\",\"1883\"", 4, 65.0)
             pass
-        elif self.match_response('TCP CLOSED\r\n', GPRS_IP_READY):
+        elif self.match_response(b'TCP CLOSED\r\n', GPRS_IP_READY):
             #sendATCommand("AT+CIICR", 2, 15.0)
             pass
-        elif self.match_response('IP CONFIG\r\n', GPRS_IP_READY):
+        elif self.match_response(b'IP CONFIG\r\n', GPRS_IP_READY):
             #time.sleep(3)
             pass
-        elif self.match_response('TCP CONNECTING\r\n', GPRS_IP_READY):
+        elif self.match_response(b'TCP CONNECTING\r\n', GPRS_IP_READY):
             #time.sleep(10)
             pass
-        elif self.match_response('TCP CLOSING\r\n', GPRS_IP_READY):
+        elif self.match_response(b'TCP CLOSING\r\n', GPRS_IP_READY):
             pass
-        elif self.match_response('PDP DEACT\r\n', GPRS_IP_READY):
+        elif self.match_response(b'PDP DEACT\r\n', GPRS_IP_READY):
             # what do I do?
             pass
-        elif self.match_response('CONNECT OK\r\n', GPRS_IP_READY):
+        elif self.match_response(b'CONNECT OK\r\n', GPRS_IP_READY):
             # waitCONNACK()
             pass
-        elif self.match_response('+CCALR: 0\r\n', GPRS_CALR):
+        elif self.match_response(b'+CCALR: 0\r\n', GPRS_CALR):
             pass
-        elif self.match_response('+CCALR: 1\r\n', GPRS_CALR):
+        elif self.match_response(b'+CCALR: 1\r\n', GPRS_CALR):
             self.call_ready = True
-        elif self.match_response('+CREG: 0\r\n', GPRS_REG):
+        elif self.match_response(b'+CREG: 0\r\n', GPRS_REG):
             pass
-        elif self.match_response('+CREG: 1\r\n', GPRS_REG):
+        elif self.match_response(b'+CREG: 1\r\n', GPRS_REG):
             self.registered = True
-        elif self.is_prefix('+CSQ: ', pop=False):
+        elif self.is_prefix(b'+CSQ: ', pop=False):
             temp = self.bytes[6:0].split(',')
             signal = temp[0]
             if 1 == len(signal):
@@ -201,9 +205,9 @@ class Gprs:
             xxx
 
 
-        #elif self.match_response('+CREG: 5\r\n', GPRS_REG): # roaming, I think
+        #elif self.match_response(b'+CREG: 5\r\n', GPRS_REG): # roaming, I think
         #    self.registered = True
-        #elif self.match_response('ERROR\r\n', GPRS_ERROR):
+        #elif self.match_response(b'ERROR\r\n', GPRS_ERROR):
         #    pass
         else:
             logging.error('Gprs.process_bytes(): write code to handle %s', self.bytes)
@@ -237,7 +241,7 @@ class Gprs:
                         logging.error('Unable to open serial port %s', self.port)
                     else:
                         # Send a command to the radio to see if it is working
-                        self.send_command('AT', (), [GPRS_BLANK, GPRS_OK], 5, GPRS_DISABLE_GPS)
+                        self.send_command(b'AT', (), [GPRS_BLANK, GPRS_OK], 5, GPRS_DISABLE_GPS)
 
             elif GPRS_POWERING_UP == self.state:
                 if 3 <= (time.time() - self.start_time):
@@ -246,37 +250,37 @@ class Gprs:
                     self.state = GPRS_INITIAL
 
             elif GPRS_DISABLE_GPS == self.state:
-                self.send_command('AT+CGNSTST=0', (), [GPRS_BLANK, GPRS_OK], 0.5, GPRS_SECOND_AT)
+                self.send_command(b'AT+CGNSTST=0', (), [GPRS_BLANK, GPRS_OK], 0.5, GPRS_SECOND_AT)
             elif GPRS_SECOND_AT == self.state:
-                self.send_command('AT', (), [GPRS_BLANK, GPRS_OK], 0.5, GPRS_MEE)
+                self.send_command(b'AT', (), [GPRS_BLANK, GPRS_OK], 0.5, GPRS_MEE)
             elif GPRS_MEE == self.state:
-                self.send_command('AT+CMEE=1', (), [GPRS_BLANK, GPRS_OK], 0.5, GPRS_IPSPRT)
+                self.send_command(b'AT+CMEE=1', (), [GPRS_BLANK, GPRS_OK], 0.5, GPRS_IPSPRT)
             elif GPRS_IPSPRT == self.state:
                 self.call_ready = False
-                self.send_command('AT+CIPSPRT=0', (), [GPRS_BLANK, GPRS_OK], 0.5, GPRS_CALL_READY)
+                self.send_command(b'AT+CIPSPRT=0', (), [GPRS_BLANK, GPRS_OK], 0.5, GPRS_CALL_READY)
             elif GPRS_CALL_READY == self.state:
                 if self.call_ready:
                     self.state = GPRS_REGISTERED
                     self.registered = False
                 else:
-                    self.send_command('AT+CCALR?', (), [GPRS_BLANK, GPRS_CALR], 0.5, GPRS_CALL_READY)
+                    self.send_command(b'AT+CCALR?', (), [GPRS_BLANK, GPRS_CALR], 0.5, GPRS_CALL_READY)
             elif GPRS_REGISTERED == self.state:
                 if self.registered:
                     self.state = GPRS_CLK
                 else:
-                    self.send_command('AT+CREG?', (), [GPRS_BLANK, GPRS_REG], 0.5, GPRS_REGISTERED)
+                    self.send_command(b'AT+CREG?', (), [GPRS_BLANK, GPRS_REG], 0.5, GPRS_REGISTERED)
             elif GPRS_CLK == self.state:
                 self.signal = 0
-                self.send_command('AT+CCLK?', (), [GPRS_BLANK, GPRS_TIME], 0.5, GPRS_CSQ)
+                self.send_command(b'AT+CCLK?', (), [GPRS_BLANK, GPRS_TIME], 0.5, GPRS_CSQ)
             elif GPRS_CSQ == self.state:
                 if 4 < self.signal:
                     self.state = GPRS_IPSHUT
                 else:
-                    self.send_command('AT+CSQ', (), [GPRS_BLANK, GPRS_OK, GPRS_BLANK, GPRS_SQ], 0.5, GPRS_CSQ)
+                    self.send_command(b'AT+CSQ', (), [GPRS_BLANK, GPRS_OK, GPRS_BLANK, GPRS_SQ], 0.5, GPRS_CSQ)
             elif GPRS_IPSHUT == self.state:
-                self.send_command('AT+CIPSHUT', (), [GPRS_BLANK, GPRS_OK], 15, GPRS_IP_READY)
+                self.send_command(b'AT+CIPSHUT', (), [GPRS_BLANK, GPRS_OK], 15, GPRS_IP_READY)
             elif GPRS_IP_READY == self.state:
-                self.send_command('AT+CIPSTATUS', (), [GPRS_BLANK, GPRS_OK, GPRS_BLANK, GPRS_IPSTATUS], 0.5, GPRS_IP_READY)
+                self.send_command(b'AT+CIPSTATUS', (), [GPRS_BLANK, GPRS_OK, GPRS_BLANK, GPRS_IPSTATUS], 0.5, GPRS_IP_READY)
 
             else:
                 # unknown state
