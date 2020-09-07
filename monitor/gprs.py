@@ -20,9 +20,6 @@ GPRS_IPSHUT = 12
 GPRS_CIICR = 13
 GPRS_CSTT = 14
 
-                
-
-
 
 # responses
 GPRS_BLANK = 50
@@ -35,6 +32,7 @@ GPRS_REG = 56
 GPRS_SQ = 57
 GPRS_SHUTOK = 58
 GPRS_TIME = 59
+GPRS_SPONTANEOUS = 60
 
 
 class Gprs:
@@ -117,6 +115,8 @@ class Gprs:
             return 'GPRS_CIICR'
         elif (GPRS_CSTT == token):
             return 'GPRS_CSTT'
+        elif (GPRS_SPONTANEOUS == token):
+            return 'GPRS_SPONTANEOUS'
         else:
             raise NotImplementedError
 
@@ -142,21 +142,26 @@ class Gprs:
                 self.clear_to_end_of_line()
 
             # match with the expected response
-            str_response = self.to_string(response)
-            logging.debug("Gprs.match_response(): found %s line", str_response)
-            if 0 < len(self.response_list):
-                if response == self.response_list[0]:
-                    logging.debug(f'remove {str_response} from response_list')
-                    self.response_list.pop(0)
-                    return True
-                else:
-                    logging.error('Gprs.match_response(): found %s line where %s was expected', str_response, self.to_string(self.response_list[0]))
-                    # What do we do now?
-                    self.state = GPRS_FOO
-
+            if (GPRS_SPONTANEOUS == response):
+                # don't match this with expected responses
+                pass
             else:
-                # got a blank line while not expecting any response
-                logging.error('Gprs.match_response(): found blank line where nothing was expected')
+                str_response = self.to_string(response)
+                logging.debug("Gprs.match_response(): found %s line", str_response)
+                if 0 < len(self.response_list):
+                    if response == self.response_list[0]:
+                        logging.debug(f'remove {str_response} from response_list')
+                        self.response_list.pop(0)
+                        return True
+                    else:
+                        logging.error('Gprs.match_response(): found %s line where %s was expected', str_response, self.to_string(self.response_list[0]))
+                        # What do we do now?
+                        self.state = GPRS_FOO
+
+                else:
+                    # got a blank line while not expecting any response
+                    logging.error('Gprs.match_response(): found blank line where nothing was expected')
+                    self.state = GPRS_FOO
 
         return False
 
@@ -198,31 +203,31 @@ class Gprs:
             pass
         elif self.match_response(b'SHUT OK\r\n', GPRS_SHUTOK):
             pass
-        elif self.match_response(b'STATE: IP INITIAL\r\n', GPRS_IP_READY):
+        elif self.match_response(b'STATE: IP INITIAL\r\n', GPRS_IPSTATUS):
             self.next_state = GPRS_CSTT
-        elif self.match_response(b'STATE: IP START\r\n', GPRS_IP_READY):
+        elif self.match_response(b'STATE: IP START\r\n', GPRS_IPSTATUS):
             self.next_state = GPRS_CIICR
-        elif self.match_response(b'STATE: IP GPRSACT\r\n', GPRS_IP_READY):
+        elif self.match_response(b'STATE: IP GPRSACT\r\n', GPRS_IPSTATUS):
             #sendATCommand("AT+CIFSR", 2, 2.5)
             pass
-        elif self.match_response(b'STATE: IP STATUS\r\n', GPRS_IP_READY):
+        elif self.match_response(b'STATE: IP STATUS\r\n', GPRS_IPSTATUS):
             #sendATCommand("AT+CIPSTART=\"TCP\",\"io.adafruit.com\",\"1883\"", 4, 65.0)
             pass
-        elif self.match_response(b'STATE: TCP CLOSED\r\n', GPRS_IP_READY):
+        elif self.match_response(b'STATE: TCP CLOSED\r\n', GPRS_IPSTATUS):
             #sendATCommand("AT+CIICR", 2, 15.0)
             pass
-        elif self.match_response(b'STATE: IP CONFIG\r\n', GPRS_IP_READY):
+        elif self.match_response(b'STATE: IP CONFIG\r\n', GPRS_IPSTATUS):
             #time.sleep(3)
             pass
-        elif self.match_response(b'STATE: TCP CONNECTING\r\n', GPRS_IP_READY):
+        elif self.match_response(b'STATE: TCP CONNECTING\r\n', GPRS_IPSTATUS):
             #time.sleep(10)
             pass
-        elif self.match_response(b'STATE: TCP CLOSING\r\n', GPRS_IP_READY):
+        elif self.match_response(b'STATE: TCP CLOSING\r\n', GPRS_IPSTATUS):
             pass
-        elif self.match_response(b'STATE: PDP DEACT\r\n', GPRS_IP_READY):
+        elif self.match_response(b'STATE: PDP DEACT\r\n', GPRS_IPSTATUS):
             # what do I do?
             pass
-        elif self.match_response(b'CONNECT OK\r\n', GPRS_IP_READY):
+        elif self.match_response(b'CONNECT OK\r\n', GPRS_IPSTATUS):
             # waitCONNACK()
             pass
         elif self.match_response(b'+CCALR: 0\r\n', GPRS_CALR):
@@ -240,7 +245,7 @@ class Gprs:
             temp = self.remainder.decode(encoding='UTF-8').split(',') # yy/MM/dd,hh:mm:ss+zz"
             # temp[0] is yy/MM/dd
             # temp[1] is hh:mm:ss+zz"
-            logging.info("Time is %s", temp[1][0:-3])
+            logging.info("Time is %s", temp[1][0:-1])
 
         elif self.match_response(b'+CSQ: ', GPRS_SQ, partial=True):
             temp = self.remainder.decode(encoding='UTF-8').split(',')
@@ -254,8 +259,12 @@ class Gprs:
                 self.signal = 0
             logging.info("Signal quality is %d", self.signal)
 
-        #elif self.match_response(b'ERROR\r\n', GPRS_ERROR):
-        #    pass
+        # Error conditions
+        elif self.match_response(b'+PDP: DEACT\r\n', GPRS_SPONTANEOUS):
+            pass # self.state = GPRS_FOO
+        elif self.match_response(b'ERROR\r\n', GPRS_ERROR):
+            self.state = GPRS_FOO
+
         else:
             logging.error('Gprs.process_bytes(): write code to handle %s', self.bytes)
             raise NotImplementedError
@@ -269,8 +278,7 @@ class Gprs:
         while self.process_bytes(): # this needs a timeout or iteration limit
             if 0 == len(self.response_list):
                 # we have satisfied the expected response for the command
-                # now what?
-                logging.info("command satisfied. Radio idle. Next state %s", self.to_string(self.next_state))
+                logging.info("%s done in %d seconds. Next state %s", self.command, time.time()-self.command_start_time, self.to_string(self.next_state))
                 self.radio_busy = False
                 self.state = self.next_state
 
@@ -351,6 +359,7 @@ class Gprs:
         self.timeout = timeout
         self.next_state = next_state
         self.radio_busy = True
+        self.command_start_time = time.time()
         self.lines_of_response = 0
         self.ser.write(command)
         self.ser.write(b'\r\n')
