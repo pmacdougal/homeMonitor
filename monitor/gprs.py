@@ -17,6 +17,11 @@ GPRS_REGISTERED = 9
 GPRS_CLK = 10
 GPRS_CSQ = 11
 GPRS_IPSHUT = 12
+GPRS_CIICR = 13
+GPRS_CSTT = 14
+
+                
+
 
 
 # responses
@@ -81,7 +86,6 @@ class Gprs:
             return 'SHUT OK'
         elif (GPRS_TIME == token):
             return 'TIME'
-            
 
         elif (GPRS_INITIAL == token):
             return 'GPRS_INITIAL'
@@ -109,8 +113,12 @@ class Gprs:
             return 'GPRS_IPSHUT'
         elif (GPRS_IP_READY == token):
             return 'GPRS_IP_READY'
+        elif (GPRS_CIICR == token):
+            return 'GPRS_CIICR'
+        elif (GPRS_CSTT == token):
+            return 'GPRS_CSTT'
         else:
-            return 'unknown'
+            raise NotImplementedError
 
     # see if the string parameter is at the beginning of the recieved bytes from the radio
     def is_prefix(self, string, *, pop=False):
@@ -131,7 +139,6 @@ class Gprs:
                 if -1 == pos:
                     raise NotImplementedError
                 self.remainder = self.bytes[0:pos]
-                self.bytes = self.bytes[pos+2:]
                 self.clear_to_end_of_line()
 
             # match with the expected response
@@ -191,30 +198,28 @@ class Gprs:
             pass
         elif self.match_response(b'SHUT OK\r\n', GPRS_SHUTOK):
             pass
-        elif self.match_response(b'IP START\r\n', GPRS_IP_READY):
-            # sendATCommand("AT+CIICR", 2, 65.0)
-            pass
-        elif self.match_response(b'IP INITIAL\r\n', GPRS_IP_READY):
-            #sendATCommand("AT+CSTT=\"m2mglobal\"", 2, 0.5)
-            pass
-        elif self.match_response(b'IP GPRSACT\r\n', GPRS_IP_READY):
+        elif self.match_response(b'STATE: IP INITIAL\r\n', GPRS_IP_READY):
+            self.next_state = GPRS_CSTT
+        elif self.match_response(b'STATE: IP START\r\n', GPRS_IP_READY):
+            self.next_state = GPRS_CIICR
+        elif self.match_response(b'STATE: IP GPRSACT\r\n', GPRS_IP_READY):
             #sendATCommand("AT+CIFSR", 2, 2.5)
             pass
-        elif self.match_response(b'IP STATUS\r\n', GPRS_IP_READY):
+        elif self.match_response(b'STATE: IP STATUS\r\n', GPRS_IP_READY):
             #sendATCommand("AT+CIPSTART=\"TCP\",\"io.adafruit.com\",\"1883\"", 4, 65.0)
             pass
-        elif self.match_response(b'TCP CLOSED\r\n', GPRS_IP_READY):
+        elif self.match_response(b'STATE: TCP CLOSED\r\n', GPRS_IP_READY):
             #sendATCommand("AT+CIICR", 2, 15.0)
             pass
-        elif self.match_response(b'IP CONFIG\r\n', GPRS_IP_READY):
+        elif self.match_response(b'STATE: IP CONFIG\r\n', GPRS_IP_READY):
             #time.sleep(3)
             pass
-        elif self.match_response(b'TCP CONNECTING\r\n', GPRS_IP_READY):
+        elif self.match_response(b'STATE: TCP CONNECTING\r\n', GPRS_IP_READY):
             #time.sleep(10)
             pass
-        elif self.match_response(b'TCP CLOSING\r\n', GPRS_IP_READY):
+        elif self.match_response(b'STATE: TCP CLOSING\r\n', GPRS_IP_READY):
             pass
-        elif self.match_response(b'PDP DEACT\r\n', GPRS_IP_READY):
+        elif self.match_response(b'STATE: PDP DEACT\r\n', GPRS_IP_READY):
             # what do I do?
             pass
         elif self.match_response(b'CONNECT OK\r\n', GPRS_IP_READY):
@@ -237,9 +242,7 @@ class Gprs:
             # temp[1] is hh:mm:ss+zz"
             logging.info("Time is %s", temp[1][0:-3])
 
-        elif self.match_response(b'+CSQ: ', GPRS_SQ, partial=True):            
-
-        elif self.is_prefix(b'+CSQ: ', pop=False):
+        elif self.match_response(b'+CSQ: ', GPRS_SQ, partial=True):
             temp = self.remainder.decode(encoding='UTF-8').split(',')
             signal = temp[0]
             if 1 == len(signal):
@@ -329,7 +332,13 @@ class Gprs:
             elif GPRS_IPSHUT == self.state:
                 self.send_command(b'AT+CIPSHUT', (), [GPRS_ECHO, GPRS_SHUTOK], 15, GPRS_IP_READY)
             elif GPRS_IP_READY == self.state:
-                self.send_command(b'AT+CIPSTATUS', (), [GPRS_ECHO, GPRS_IPSTATUS, GPRS_BLANK, GPRS_OK], 0.5, GPRS_IP_READY)
+                self.send_command(b'AT+CIPSTATUS', (), [GPRS_ECHO, GPRS_OK, GPRS_BLANK, GPRS_IPSTATUS], 0.5, GPRS_IP_READY)
+            elif GPRS_CSTT == self.state:
+                self.send_command(b'AT+CSTT="m2mglobal"', (), [GPRS_ECHO, GPRS_OK], 0.5, GPRS_IP_READY)
+            elif GPRS_CIICR == self.state:
+                self.send_command(b'AT+CIICR', (), [GPRS_ECHO, GPRS_OK], 65.0, GPRS_IP_READY)
+                
+
 
             else:
                 # unknown state
