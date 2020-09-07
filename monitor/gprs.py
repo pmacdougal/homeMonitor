@@ -19,6 +19,8 @@ GPRS_CSQ = 11
 GPRS_IPSHUT = 12
 GPRS_CIICR = 13
 GPRS_CSTT = 14
+GPRS_CIFSR = 15
+GPRS_CIPSTART = 16
 
 
 # responses
@@ -113,6 +115,10 @@ class Gprs:
             return 'GPRS_IP_READY'
         elif (GPRS_CIICR == token):
             return 'GPRS_CIICR'
+        elif (GPRS_CIFSR == token):
+            return 'GPRS_CIFSR'
+        elif (GPRS_CIPSTART == token):
+            return 'GPRS_CIPSTART'
         elif (GPRS_CSTT == token):
             return 'GPRS_CSTT'
         elif (GPRS_SPONTANEOUS == token):
@@ -135,7 +141,7 @@ class Gprs:
         if self.is_prefix(string, pop=True):
             if partial:
                 pos = self.bytes.find(b'\r\n')
-                logging.info("%s End of line is at %d", self.bytes, pos)
+                #logging.info("%s End of line is at %d", self.bytes, pos)
                 if -1 == pos:
                     raise NotImplementedError
                 self.remainder = self.bytes[0:pos]
@@ -147,7 +153,7 @@ class Gprs:
                 pass
             else:
                 str_response = self.to_string(response)
-                logging.debug("Gprs.match_response(): found %s line", str_response)
+                #logging.debug("Gprs.match_response(): found %s line", str_response)
                 if 0 < len(self.response_list):
                     if response == self.response_list[0]:
                         logging.debug(f'remove {str_response} from response_list')
@@ -167,7 +173,7 @@ class Gprs:
 
     def clear_to_end_of_line(self):
         pos = self.bytes.find(b'\r\n')
-        logging.info("%s End of line is at %d", self.bytes, pos)
+        #logging.info("%s End of line is at %d", self.bytes, pos)
         if -1 == pos:
             raise NotImplementedError
         self.bytes = self.bytes[pos+2:]
@@ -208,11 +214,9 @@ class Gprs:
         elif self.match_response(b'STATE: IP START\r\n', GPRS_IPSTATUS):
             self.next_state = GPRS_CIICR
         elif self.match_response(b'STATE: IP GPRSACT\r\n', GPRS_IPSTATUS):
-            #sendATCommand("AT+CIFSR", 2, 2.5)
-            pass
+            self.next_state = GPRS_CIFSR
         elif self.match_response(b'STATE: IP STATUS\r\n', GPRS_IPSTATUS):
-            #sendATCommand("AT+CIPSTART=\"TCP\",\"io.adafruit.com\",\"1883\"", 4, 65.0)
-            pass
+            self.next_state = GPRS_CIPSTART
         elif self.match_response(b'STATE: TCP CLOSED\r\n', GPRS_IPSTATUS):
             #sendATCommand("AT+CIICR", 2, 15.0)
             pass
@@ -345,9 +349,10 @@ class Gprs:
                 self.send_command(b'AT+CSTT="m2mglobal"', (), [GPRS_ECHO, GPRS_OK], 0.5, GPRS_IP_READY)
             elif GPRS_CIICR == self.state:
                 self.send_command(b'AT+CIICR', (), [GPRS_ECHO, GPRS_OK], 65.0, GPRS_IP_READY)
-                
-
-
+            elif GPRS_CIFSR == self.state:
+                self.send_command(b'AT+CIFSR', (), [GPRS_ECHO, GPRS_OK], 2.5, GPRS_IP_READY)
+            elif GPRS_CIPSTART == self.state:
+                self.send_command(b'AT+CIPSTART="TCP","io.adafruit.com","1883"', (), [GPRS_ECHO, GPRS_OK, GPRS_BLANK, GPRS_IPSTATUS], 65.0, GPRS_IP_READY)
             else:
                 # unknown state
                 logging.error('Write code to handle state %s', self.to_string(self.state))
