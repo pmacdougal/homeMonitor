@@ -218,12 +218,13 @@ class Gprs:
     # match bytes from the radio with expected responses
     def process_bytes(self):
         # if there is no response from radio, just return
-        if (0 == len(self.bytes)):
+        numbytes = len(self.bytes)
+        if (0 == numbytes):
             return False
 
         # handle responses that do not end with \r\n (tyically MQTT packets)
         if GPRS_RESPONSE_CONNACK == self.response_list[0]:
-            if 4 <= len(self.bytes):
+            if 4 <= numbytes:
                 # opcode 32
                 # length - 2
                 # session present - 0 or 1
@@ -240,15 +241,8 @@ class Gprs:
                         logging.error('CONNACK connection refused.  Status %s', self.bytes[3])
                         self.state = GPRS_STATE_FOO 
 
-        elif self.match_response(b'AT+CIPSEND\r', GPRS_RESPONSE_ECHO, partial=True):
-            logging.info(f'    Gprs.process_bytes() {self.lines_of_response} - {self.bytes}')
-            self.lines_of_response += 1
-            # self.remainder should be the MQTT connection packet we sent
-            self.clear_to_end_of_line() # this won't work if there is no \r\n at the end.  If there is, then this code should move downward. Hmmm
-            return True
-
         if not b'\r\n' in self.bytes:
-            logging.info('partial line detected %d %s', len(self.bytes), self.bytes)
+            logging.info('partial line detected %d %s', numbytes, self.bytes)
             return False
 
         # try to match the response (we could refactor relative to self.command)
@@ -258,6 +252,9 @@ class Gprs:
             pass
         elif self.is_prefix(b'AT+', pop=False):
             if self.match_response(self.command + b'\r\r\n', GPRS_RESPONSE_ECHO):
+                pass
+            elif self.match_response(self.command + b'\r', GPRS_RESPONSE_ECHO, partial=True):
+                # self.remainder should be the remainder of the line (e.g. MQTT connect packet)
                 pass
             else:
                 logging.error(f'got AT+ prefix but not {self.command}\\r\\r\\n')
@@ -347,7 +344,7 @@ class Gprs:
                 self.state = GPRS_STATE_FOO
 
         else:
-            logging.error('Gprs.process_bytes(): write code to handle %s %d', self.bytes, len(self.bytes))
+            logging.error('Gprs.process_bytes(): write code to handle %s %d', self.bytes, numbytes)
             raise NotImplementedError
             #self.clear_to_end_of_line()
             return False
