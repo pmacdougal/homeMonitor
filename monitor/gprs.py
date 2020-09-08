@@ -213,6 +213,24 @@ class Gprs:
         if (0 == len(self.bytes)):
             return False
 
+        # handle responses that do not end with \r\n (tyically MQTT packets)
+        if GPRS_RESPONSE_CONNACK == self.response_list[0]:
+            if 4 <= len(self.bytes):
+                # opcode 32
+                # length - 2
+                # session present - 0 or 1
+                # payload - 0, 1, 2, 3, 4, 5
+                if (b' ' == self.bytes[0]
+                   and b'\x02' == self.bytes[1]
+                   and (b'\x00' == self.bytes[2] or b'\x01' == self.bytes[2])):
+                    if b'\x00' == self.bytes[3]:
+                        logging.info("Got CONNACK from MQTT broker")
+                        self.response_list.pop(0)
+                        self.bytes = self.bytes[4:]
+                    else:
+                        logging.error('CONNACK connection refused.  Status %s', self.bytes[3])
+                        self.state = GPRS_STATE_FOO 
+
         if not b'\r\n' in self.bytes:
             logging.info('partial line detected %d %s', len(self.bytes), self.bytes)
             return False
@@ -309,22 +327,6 @@ class Gprs:
             else:
                 logging.error("Failed to parse line that should have been an IP address: %s", self.bytes)
                 self.state = GPRS_STATE_FOO
-
-        elif GPRS_RESPONSE_CONNACK == self.response_list[0]:
-            if 4 <= len(self.bytes):
-                # opcode 32
-                # length - 2
-                # session present - 0 or 1
-                # payload - 0, 1, 2, 3, 4, 5
-                if (b' ' == self.bytes[0]
-                   and b'\x02' == self.bytes[1]
-                   and (b'\x00' == self.bytes[2] or b'\x01' == self.bytes[2])):
-                    if b'\x00' == self.bytes[3]:
-                        self.response_list.pop(0)
-                        self.bytes = self.bytes[4:]
-                    else:
-                        logging.error('CONNACK connection refused.  Status %s', self.bytes[3])
-                        self.state = GPRS_STATE_FOO
 
         else:
             logging.error('Gprs.process_bytes(): write code to handle %s %d', self.bytes, len(self.bytes))
