@@ -2,6 +2,8 @@ import logging
 import serial
 import time
 import RPi.GPIO
+from socket import gethostname
+from monitor.private import username, password
 
 # states
 GPRS_STATE_MAX = 0
@@ -22,6 +24,7 @@ GPRS_STATE_CIICR = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
 GPRS_STATE_CSTT = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
 GPRS_STATE_CIFSR = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
 GPRS_STATE_CIPSTART = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
+GPRS_STATE_CONNECT = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
 #GPRS_STATE_WAIT_CONNACK = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
 
 
@@ -41,6 +44,7 @@ GPRS_RESPONSE_TIME = 59
 GPRS_RESPONSE_SPONTANEOUS = 60
 GPRS_RESPONSE_IPADDR = 61
 GPRS_RESPONSE_CONNACK = 62
+GPRS_RESPONSE_SENDOK = 63
 
 class Gprs_state:
     def __init__(self, machine, response_list, response_count, next_state, command_string):
@@ -114,6 +118,8 @@ class Gprs:
             return 'GPRS_RESPONSE_IPADDR'
         elif GPRS_RESPONSE_CONNACK == token:
             return 'GPRS_RESPONSE_CONNACK'
+        elif GPRS_RESPONSE_SENDOK == token:
+            return 'GPRS_RESPONSE_SENDOK'
 
         elif GPRS_STATE_INITIAL == token:
             return 'GPRS_STATE_INITIAL'
@@ -149,6 +155,8 @@ class Gprs:
             return 'GPRS_STATE_CIPSTART'
         elif GPRS_STATE_CSTT == token:
             return 'GPRS_STATE_CSTT'
+        elif GPRS_STATE_CONNECT == token:
+            return 'GPRS_STATE_CONNECT'
         #elif GPRS_STATE_WAIT_CONNACK == token:
         #    return 'GPRS_STATE_WAIT_CONNACK'
         else:
@@ -411,7 +419,11 @@ class Gprs:
             elif GPRS_STATE_CIFSR == self.state:
                 self.send_command(b'AT+CIFSR', (), [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_IPADDR], 2.5, GPRS_STATE_IP_READY)
             elif GPRS_STATE_CIPSTART == self.state:
-                self.send_command(b'AT+CIPSTART="TCP","io.adafruit.com","1883"', (), [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK, GPRS_RESPONSE_BLANK, GPRS_RESPONSE_IPSTATUS, GPRS_RESPONSE_CONNACK], 120.0, GPRS_STATE_IP_READY)
+                self.send_command(b'AT+CIPSTART="TCP","io.adafruit.com","1883"', (), [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK, GPRS_RESPONSE_BLANK, GPRS_RESPONSE_IPSTATUS], 120.0, GPRS_STATE_CONNECT)
+            elif GPRS_STATE_CONNECT == self.state:
+                packet = self.buildConnectPacket()
+                self.send_command(b'AT+CIPSEND', packet, [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_SENDOK, GPRS_RESPONSE_CONNACK], 30.0, GPRS_STATE_FOO)
+
             #elif GPRS_STATE_WAIT_CONNACK == self.state:
             #    self.send_command(b'AT+CIPSTART="TCP","io.adafruit.com","1883"', (), [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK, GPRS_RESPONSE_BLANK, GPRS_RESPONSE_IPSTATUS], 65.0, GPRS_STATE_IP_READY)
             #    self.response_list = [GPRS_RESPONSE_CONNACK]
@@ -419,6 +431,56 @@ class Gprs:
             else:
                 # unknown state
                 logging.error('Write code to handle state %s', self.to_string(self.state))
+
+    def buildConnectPacket(self):
+        hostname = gethostname()
+        # connect packet
+        packet = bytearray(0)
+        # Fixed Header
+        packet.append(0x10) # MQTT_CTRL_CONNECT << 4
+        packet.append(0) # length for now is zero
+        # Protocol Name
+        packet.append(0) # Protocol name length MSB
+        packet.append(4) # Protocol name length LSB
+        packet += b'MQTT'
+        # Protocol Level
+        packet.append(4) # Protocol level
+        # Connect Flags
+        #define MQTT_CONN_USERNAMEFLAG    0x80
+        #define MQTT_CONN_PASSWORDFLAG    0x40
+        #define MQTT_CONN_CLEANSESSION    0x02
+        packet.append(0x80+0x40+0x02)
+        # Keepalive
+        packet.append(0x01) # 256
+        packet.append(0x2c) #  44
+        # Cliend Identifier
+        packet.append(0x00) # clientId length MSB
+        packet.append(len(hostname)) # clientId length LSB
+        packet += hostname
+        # Will Topic
+        # Will Message
+        # Username
+        packet.append(0x00) # username length MSB
+        packet.append(len(username)) # username length LSB
+        packet += username
+        # Password
+        packet.append(0x00) # password length MSB
+        packet.append(len(password)) # password length LSB
+        packet += password
+        # Fill in packet length
+        if 127 < len(packet)-2:
+            logging.error("Write more code 3")
+            raise NotImplementedError
+        if 28 == len(packet):
+            logging.error("Write more code 4")
+            raise NotImplementedError
+        if 29 == len(packet):
+            logging.error("Write more code 5")
+            raise NotImplementedError
+        packet[1] = len(packet)-2
+        # GPRS MODEM end of transmission flag
+        packet.append(26) # not really part of the packet
+        return packet
 
     def send_command(self, command, bytes, response_list, timeout, next_state):
         logging.debug('Gprs.send_command(): Sending command %s', command)
