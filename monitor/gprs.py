@@ -177,9 +177,11 @@ class Gprs:
                 pos = self.bytes.find(b'\r\n')
                 #logging.info('%s End of line is at %d', self.bytes, pos)
                 if -1 == pos:
-                    raise NotImplementedError
-                self.remainder = self.bytes[0:pos]
-                self.clear_to_end_of_line()
+                    self.remainder = self.bytes[0:]
+                    self.bytes = []
+                else:
+                    self.remainder = self.bytes[0:pos]
+                    self.bytes = self.bytes[pos+2:]
 
             # match with the expected response
             if (GPRS_RESPONSE_SPONTANEOUS == response):
