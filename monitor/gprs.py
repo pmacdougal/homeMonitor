@@ -27,9 +27,6 @@ GPRS_STATE_CIPSTART = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
 GPRS_STATE_CONNECT = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
 #GPRS_STATE_WAIT_CONNACK = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
 
-
-
-
 # responses
 GPRS_RESPONSE_BLANK = 50
 GPRS_RESPONSE_OK = 51
@@ -238,13 +235,16 @@ class Gprs:
                     else:
                         logging.error('CONNACK connection refused.  Status %s', self.bytes[3])
                         self.state = GPRS_STATE_FOO 
+        elif self.match_response(b'AT+CIPSEND\r', GPRS_RESPONSE_ECHO, partial=True):
+            # self.remainder should be the MQTT connection packet we sent
+            self.clear_to_end_of_line()
 
         if not b'\r\n' in self.bytes:
             logging.info('partial line detected %d %s', len(self.bytes), self.bytes)
             return False
 
         # try to match the response (we could refactor relative to self.command)
-        logging.info(f'Gprs.process_bytes() {self.lines_of_response} - {self.bytes}')
+        logging.info(f'    Gprs.process_bytes() {self.lines_of_response} - {self.bytes}')
         self.lines_of_response += 1
         if self.match_response(b'\r\n', GPRS_RESPONSE_BLANK):
             pass
@@ -456,17 +456,17 @@ class Gprs:
         # Cliend Identifier
         packet.append(0x00) # clientId length MSB
         packet.append(len(hostname)) # clientId length LSB
-        packet += hostname
+        packet += hostname.encode(encoding='UTF-8')
         # Will Topic
         # Will Message
         # Username
         packet.append(0x00) # username length MSB
         packet.append(len(username)) # username length LSB
-        packet += username
+        packet += username.encode(encoding='UTF-8')
         # Password
         packet.append(0x00) # password length MSB
         packet.append(len(password)) # password length LSB
-        packet += password
+        packet += password.encode(encoding='UTF-8')
         # Fill in packet length
         if 127 < len(packet)-2:
             logging.error("Write more code 3")
