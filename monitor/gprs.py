@@ -31,7 +31,7 @@ GPRS_STATE_MQTTCONNECT = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
 GPRS_RESPONSE_BLANK = 50
 GPRS_RESPONSE_OK = 51
 GPRS_RESPONSE_ECHO = 52
-GPRS_RESPONSE_ERROR = 53
+
 GPRS_RESPONSE_IPSTATUS = 54
 GPRS_RESPONSE_CALR = 55
 GPRS_RESPONSE_REG = 56
@@ -89,13 +89,11 @@ class Gprs:
             self.bytes += newbytes
 
     # convert constants to string representations
-    def to_string(self, token):
+    def stringify(self, token):
         if GPRS_RESPONSE_BLANK == token:
             return 'blank'
         elif GPRS_RESPONSE_OK == token:
             return 'OK'
-        elif GPRS_RESPONSE_ERROR == token:
-            return 'ERROR'
         elif GPRS_RESPONSE_ECHO == token:
             return self.command
         elif GPRS_RESPONSE_IPSTATUS == token:
@@ -188,7 +186,7 @@ class Gprs:
                 # don't match this with expected responses
                 pass
             else:
-                str_response = self.to_string(response)
+                str_response = self.stringify(response)
                 #logging.debug("Gprs.match_response(): found %s line", str_response)
                 if 0 < len(self.response_list):
                     if response == self.response_list[0]:
@@ -196,7 +194,7 @@ class Gprs:
                         self.response_list.pop(0)
                         return True
                     else:
-                        logging.error('Gprs.match_response(): found %s line where %s was expected', str_response, self.to_string(self.response_list[0]))
+                        logging.error('Gprs.match_response(): found %s line where %s was expected', str_response, self.stringify(self.response_list[0]))
                         # What do we do now?
                         self.state = GPRS_STATE_FOO
 
@@ -324,8 +322,10 @@ class Gprs:
 
         # Error conditions
         elif self.match_response(b'+PDP: DEACT\r\n', GPRS_RESPONSE_SPONTANEOUS):
-            pass # self.state = GPRS_STATE_FOO
-        elif self.match_response(b'ERROR\r\n', GPRS_RESPONSE_ERROR):
+            self.state = GPRS_STATE_FOO
+        elif self.match_response(b'ERROR\r\n', GPRS_RESPONSE_SPONTANEOUS):
+            self.state = GPRS_STATE_FOO
+        elif self.match_response(b'CONNECT FAIL\r\n', GPRS_RESPONSE_SPONTANEOUS):
             self.state = GPRS_STATE_FOO
 
         # hard to identify things (need regex or some such)
@@ -352,7 +352,7 @@ class Gprs:
         while self.process_bytes(): # this needs a timeout or iteration limit
             if 0 == len(self.response_list):
                 # we have satisfied the expected response for the command
-                logging.info("%s done in %d seconds. Next state %s", self.command, time.time()-self.command_start_time, self.to_string(self.next_state))
+                logging.info("%s done in %d seconds. Next state %s", self.command, time.time()-self.command_start_time, self.stringify(self.next_state))
                 self.radio_busy = False
                 self.state = self.next_state
 
@@ -436,7 +436,7 @@ class Gprs:
                 raise KeyboardInterrupt # try to exit the program here
             else:
                 # unknown state
-                logging.error('Write code to handle state %s', self.to_string(self.state))
+                logging.error('Write code to handle state %s', self.stringify(self.state))
 
     def buildConnectPacket(self):
         hostname = gethostname()
