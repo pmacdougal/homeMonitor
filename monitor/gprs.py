@@ -24,7 +24,7 @@ GPRS_STATE_CIICR = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
 GPRS_STATE_CSTT = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
 GPRS_STATE_CIFSR = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
 GPRS_STATE_CIPSTART = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
-GPRS_STATE_CONNECT = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
+GPRS_STATE_MQTTCONNECT = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
 #GPRS_STATE_WAIT_CONNACK = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
 
 # responses
@@ -42,6 +42,7 @@ GPRS_RESPONSE_SPONTANEOUS = 60
 GPRS_RESPONSE_IPADDR = 61
 GPRS_RESPONSE_CONNACK = 62
 GPRS_RESPONSE_SENDOK = 63
+GPRS_RESPONSE_CONNECTOK = 64
 
 class Gprs_state:
     def __init__(self, machine, response_list, response_count, next_state, command_string):
@@ -117,6 +118,8 @@ class Gprs:
             return 'GPRS_RESPONSE_CONNACK'
         elif GPRS_RESPONSE_SENDOK == token:
             return 'GPRS_RESPONSE_SENDOK'
+        elif GPRS_RESPONSE_CONNECTOK == token:
+            return 'GPRS_RESPONSE_CONNECTOK'
 
         elif GPRS_STATE_INITIAL == token:
             return 'GPRS_STATE_INITIAL'
@@ -152,8 +155,8 @@ class Gprs:
             return 'GPRS_STATE_CIPSTART'
         elif GPRS_STATE_CSTT == token:
             return 'GPRS_STATE_CSTT'
-        elif GPRS_STATE_CONNECT == token:
-            return 'GPRS_STATE_CONNECT'
+        elif GPRS_STATE_MQTTCONNECT == token:
+            return 'GPRS_STATE_MQTTCONNECT'
         #elif GPRS_STATE_WAIT_CONNACK == token:
         #    return 'GPRS_STATE_WAIT_CONNACK'
         else:
@@ -264,6 +267,8 @@ class Gprs:
             pass
         elif self.match_response(b'SHUT OK\r\n', GPRS_RESPONSE_SHUTOK):
             pass
+        elif self.match_response(b'SEND OK\r\n', GPRS_RESPONSE_SENDOK):
+            pass
         elif self.match_response(b'STATE: IP INITIAL\r\n', GPRS_RESPONSE_IPSTATUS):
             self.next_state = GPRS_STATE_CSTT
         elif self.match_response(b'STATE: IP START\r\n', GPRS_RESPONSE_IPSTATUS):
@@ -286,9 +291,7 @@ class Gprs:
         elif self.match_response(b'STATE: PDP DEACT\r\n', GPRS_RESPONSE_IPSTATUS):
             # what do I do?
             pass
-        elif self.match_response(b'CONNECT OK\r\n', GPRS_RESPONSE_IPSTATUS):
-            # self.next_state = GPRS_STATE_WAIT_CONNACK
-            # waitCONNACK()
+        elif self.match_response(b'CONNECT OK\r\n', GPRS_RESPONSE_CONNECTOK):
             pass
         elif self.match_response(b'+CCALR: 0\r\n', GPRS_RESPONSE_CALR):
             self.call_ready = False
@@ -419,8 +422,8 @@ class Gprs:
             elif GPRS_STATE_CIFSR == self.state:
                 self.send_command(b'AT+CIFSR', (), [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_IPADDR], 2.5, GPRS_STATE_IP_READY)
             elif GPRS_STATE_CIPSTART == self.state:
-                self.send_command(b'AT+CIPSTART="TCP","io.adafruit.com","1883"', (), [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK, GPRS_RESPONSE_BLANK, GPRS_RESPONSE_IPSTATUS], 120.0, GPRS_STATE_CONNECT)
-            elif GPRS_STATE_CONNECT == self.state:
+                self.send_command(b'AT+CIPSTART="TCP","io.adafruit.com","1883"', (), [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK, GPRS_RESPONSE_BLANK, GPRS_RESPONSE_CONNECTOK], 120.0, GPRS_STATE_MQTTCONNECT)
+            elif GPRS_STATE_MQTTCONNECT == self.state:
                 packet = self.buildConnectPacket()
                 self.send_command(b'AT+CIPSEND', packet, [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_SENDOK, GPRS_RESPONSE_CONNACK], 30.0, GPRS_STATE_FOO)
 
@@ -428,6 +431,9 @@ class Gprs:
             #    self.send_command(b'AT+CIPSTART="TCP","io.adafruit.com","1883"', (), [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK, GPRS_RESPONSE_BLANK, GPRS_RESPONSE_IPSTATUS], 65.0, GPRS_STATE_IP_READY)
             #    self.response_list = [GPRS_RESPONSE_CONNACK]
             #    self.next_state = GPRS_STATE_FOO
+
+            elif GPRS_STATE_FOO == self.state:
+                raise KeyboardInterrupt # try to exit the program here
             else:
                 # unknown state
                 logging.error('Write code to handle state %s', self.to_string(self.state))
