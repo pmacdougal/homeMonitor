@@ -233,12 +233,17 @@ class Gprs:
                         logging.info('Got CONNACK from MQTT broker')
                         self.response_list.pop(0)
                         self.bytes = self.bytes[4:]
+                        return True
                     else:
                         logging.error('CONNACK connection refused.  Status %s', self.bytes[3])
                         self.state = GPRS_STATE_FOO 
+
         elif self.match_response(b'AT+CIPSEND\r', GPRS_RESPONSE_ECHO, partial=True):
+            logging.info(f'    Gprs.process_bytes() {self.lines_of_response} - {self.bytes}')
+            self.lines_of_response += 1
             # self.remainder should be the MQTT connection packet we sent
-            self.clear_to_end_of_line()
+            self.clear_to_end_of_line() # this won't work if there is no \r\n at the end.  If there is, then this code should move downward. Hmmm
+            return True
 
         if not b'\r\n' in self.bytes:
             logging.info('partial line detected %d %s', len(self.bytes), self.bytes)
@@ -425,7 +430,7 @@ class Gprs:
                 self.send_command(b'AT+CIPSTART="TCP","io.adafruit.com","1883"', (), [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK, GPRS_RESPONSE_BLANK, GPRS_RESPONSE_CONNECTOK], 120.0, GPRS_STATE_MQTTCONNECT)
             elif GPRS_STATE_MQTTCONNECT == self.state:
                 packet = self.buildConnectPacket()
-                self.send_command(b'AT+CIPSEND', packet, [GPRS_RESPONSE_SENDOK, GPRS_RESPONSE_CONNACK], 30.0, GPRS_STATE_FOO)
+                self.send_command(b'AT+CIPSEND', packet, [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_SENDOK, GPRS_RESPONSE_CONNACK], 30.0, GPRS_STATE_FOO)
 
             #elif GPRS_STATE_WAIT_CONNACK == self.state:
             #    self.send_command(b'AT+CIPSTART="TCP","io.adafruit.com","1883"', (), [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK, GPRS_RESPONSE_BLANK, GPRS_RESPONSE_IPSTATUS], 65.0, GPRS_STATE_IP_READY)
