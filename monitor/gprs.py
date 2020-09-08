@@ -36,6 +36,7 @@ GPRS_RESPONSE_SQ = 57
 GPRS_RESPONSE_SHUTOK = 58
 GPRS_RESPONSE_TIME = 59
 GPRS_RESPONSE_SPONTANEOUS = 60
+GPRS_RESPONSE_IPADDR = 61
 
 class Gprs_state:
     def __init__(self, machine, response_list, response_count, next_state, command_string):
@@ -105,6 +106,8 @@ class Gprs:
             return 'TIME'
         elif (GPRS_RESPONSE_SPONTANEOUS == token):
             return 'GPRS_RESPONSE_SPONTANEOUS'
+        elif(GPRS_RESPONSE_IPADDR == token):
+            return 'GPRS_RESPONSE_IPADDR'
 
         elif (GPRS_STATE_INITIAL == token):
             return 'GPRS_STATE_INITIAL'
@@ -286,6 +289,16 @@ class Gprs:
         elif self.match_response(b'ERROR\r\n', GPRS_RESPONSE_ERROR):
             self.state = GPRS_STATE_FOO
 
+        # hard to identify things (need regex or some such)
+        elif GPRS_RESPONSE_IPADDR == self.response_list[0]:
+            temp = self.bytes.decode(encoding='UTF-8').split('.') # xxx.xxx.xxx.xxx"
+            if 4 == len(temp)
+                logging.info("IP Address is %d.%d.%d.%d", temp[0], temp[1], temp[2], temp[3])
+                self.response_list.pop(0)
+                self.clear_to_end_of_line()
+            else:
+                logging.error("Failed to parse line that should have been an IP address: %s", self.bytes)
+                
         else:
             logging.error('Gprs.process_bytes(): write code to handle %s %d', self.bytes, len(self.bytes))
             raise NotImplementedError
@@ -367,7 +380,7 @@ class Gprs:
             elif GPRS_STATE_CIICR == self.state:
                 self.send_command(b'AT+CIICR', (), [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK], 65.0, GPRS_STATE_IP_READY)
             elif GPRS_STATE_CIFSR == self.state:
-                self.send_command(b'AT+CIFSR', (), [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK], 2.5, GPRS_STATE_IP_READY)
+                self.send_command(b'AT+CIFSR', (), [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_IPADDR], 2.5, GPRS_STATE_IP_READY)
             elif GPRS_STATE_CIPSTART == self.state:
                 self.send_command(b'AT+CIPSTART="TCP","io.adafruit.com","1883"', (), [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK, GPRS_RESPONSE_BLANK, GPRS_RESPONSE_IPSTATUS], 65.0, GPRS_STATE_IP_READY)
             else:
