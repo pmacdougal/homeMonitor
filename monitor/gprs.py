@@ -167,7 +167,7 @@ class Gprs:
                 self.bytes = self.bytes[len(string):]
             return True
         else:
-            #logging.info(f"{string} is not a prefix of {self.bytes}")
+            #logging.info(f'{string} is not a prefix of {self.bytes}')
             return False
 
     # see if the radio responded with the expected response
@@ -175,7 +175,7 @@ class Gprs:
         if self.is_prefix(string, pop=True):
             if partial:
                 pos = self.bytes.find(b'\r\n')
-                #logging.info("%s End of line is at %d", self.bytes, pos)
+                #logging.info('%s End of line is at %d', self.bytes, pos)
                 if -1 == pos:
                     raise NotImplementedError
                 self.remainder = self.bytes[0:pos]
@@ -187,7 +187,7 @@ class Gprs:
                 pass
             else:
                 str_response = self.stringify(response)
-                #logging.debug("Gprs.match_response(): found %s line", str_response)
+                #logging.debug('Gprs.match_response(): found %s line', str_response)
                 if 0 < len(self.response_list):
                     if response == self.response_list[0]:
                         #logging.debug(f'remove {str_response} from response_list')
@@ -208,7 +208,7 @@ class Gprs:
     # remove bytes until we reach \r\n
     def clear_to_end_of_line(self):
         pos = self.bytes.find(b'\r\n')
-        #logging.info("%s End of line is at %d", self.bytes, pos)
+        #logging.info('%s End of line is at %d', self.bytes, pos)
         if -1 == pos:
             raise NotImplementedError
         self.bytes = self.bytes[pos+2:]
@@ -230,7 +230,7 @@ class Gprs:
                    and b'\x02' == self.bytes[1]
                    and (b'\x00' == self.bytes[2] or b'\x01' == self.bytes[2])):
                     if b'\x00' == self.bytes[3]:
-                        logging.info("Got CONNACK from MQTT broker")
+                        logging.info('Got CONNACK from MQTT broker')
                         self.response_list.pop(0)
                         self.bytes = self.bytes[4:]
                     else:
@@ -253,13 +253,13 @@ class Gprs:
             if self.match_response(self.command + b'\r\r\n', GPRS_RESPONSE_ECHO):
                 pass
             else:
-                logging.info(f"got AT+ prefix but not {self.command}\\r\\r\\n")
+                logging.error(f'got AT+ prefix but not {self.command}\\r\\r\\n')
                 return False
         elif self.is_prefix(b'AT', pop=False):
             if self.match_response(b'AT\r\r\n', GPRS_RESPONSE_ECHO):
                 pass
             else:
-                logging.error("AT prefix, but not AT\\r\\r\\n")
+                logging.error('AT prefix, but not AT\\r\\r\\n')
                 return False
         elif self.match_response(b'OK\r\n', GPRS_RESPONSE_OK):
             pass
@@ -276,7 +276,7 @@ class Gprs:
         elif self.match_response(b'STATE: IP STATUS\r\n', GPRS_RESPONSE_IPSTATUS):
             self.next_state = GPRS_STATE_CIPSTART
         elif self.match_response(b'STATE: TCP CLOSED\r\n', GPRS_RESPONSE_IPSTATUS):
-            #sendATCommand("AT+CIICR", 2, 15.0)
+            #sendATCommand('AT+CIICR', 2, 15.0)
             pass
         elif self.match_response(b'STATE: IP CONFIG\r\n', GPRS_RESPONSE_IPSTATUS):
             #time.sleep(3)
@@ -306,7 +306,7 @@ class Gprs:
             temp = self.remainder.decode(encoding='UTF-8').split(',') # yy/MM/dd,hh:mm:ss+zz"
             # temp[0] is yy/MM/dd
             # temp[1] is hh:mm:ss+zz"
-            logging.info("Time is %s", temp[1][0:-1])
+            logging.info('Time is %s', temp[1][0:-1])
 
         elif self.match_response(b'+CSQ: ', GPRS_RESPONSE_SQ, partial=True):
             temp = self.remainder.decode(encoding='UTF-8').split(',')
@@ -316,9 +316,9 @@ class Gprs:
             elif 2 == len(signal):
                 self.signal = (ord(signal[0]) - ord(b'0'))*10 + (ord(signal[1]) - ord(b'0'))
             else:
-                logging.error("This is unexpected.  len(signal) is %s", len(signal))
+                logging.error('This is unexpected.  len(signal) is %s', len(signal))
                 self.signal = 0
-            logging.info("Signal quality is %d", self.signal)
+            logging.info('Signal quality is %d', self.signal)
 
         # Error conditions
         elif self.match_response(b'+PDP: DEACT\r\n', GPRS_RESPONSE_SPONTANEOUS):
@@ -330,13 +330,13 @@ class Gprs:
 
         # hard to identify things (need regex or some such)
         elif GPRS_RESPONSE_IPADDR == self.response_list[0]:
-            temp = self.bytes.decode(encoding='UTF-8').split('.') # xxx.xxx.xxx.xxx"
+            temp = self.bytes.decode(encoding='UTF-8').split('.') # xxx.xxx.xxx.xxx
             if 4 == len(temp):
-                logging.info("IP Address is %s.%s.%s.%s", temp[0], temp[1], temp[2], temp[3])
+                logging.info('IP Address is %s.%s.%s.%s', temp[0], temp[1], temp[2], temp[3])
                 self.response_list.pop(0)
                 self.clear_to_end_of_line()
             else:
-                logging.error("Failed to parse line that should have been an IP address: %s", self.bytes)
+                logging.error('Failed to parse line that should have been an IP address: %s', self.bytes)
                 self.state = GPRS_STATE_FOO
 
         else:
@@ -352,7 +352,7 @@ class Gprs:
         while self.process_bytes(): # this needs a timeout or iteration limit
             if 0 == len(self.response_list):
                 # we have satisfied the expected response for the command
-                logging.info("%s done in %d seconds. Next state %s", self.command, time.time()-self.command_start_time, self.stringify(self.next_state))
+                logging.info('%s done in %d seconds. Next state %s', self.command, time.time()-self.command_start_time, self.stringify(self.next_state))
                 self.radio_busy = False
                 self.state = self.next_state
 
@@ -425,7 +425,7 @@ class Gprs:
                 self.send_command(b'AT+CIPSTART="TCP","io.adafruit.com","1883"', (), [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK, GPRS_RESPONSE_BLANK, GPRS_RESPONSE_CONNECTOK], 120.0, GPRS_STATE_MQTTCONNECT)
             elif GPRS_STATE_MQTTCONNECT == self.state:
                 packet = self.buildConnectPacket()
-                self.send_command(b'AT+CIPSEND', packet, [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_SENDOK, GPRS_RESPONSE_CONNACK], 30.0, GPRS_STATE_FOO)
+                self.send_command(b'AT+CIPSEND', packet, [GPRS_RESPONSE_SENDOK, GPRS_RESPONSE_CONNACK], 30.0, GPRS_STATE_FOO)
 
             #elif GPRS_STATE_WAIT_CONNACK == self.state:
             #    self.send_command(b'AT+CIPSTART="TCP","io.adafruit.com","1883"', (), [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK, GPRS_RESPONSE_BLANK, GPRS_RESPONSE_IPSTATUS], 65.0, GPRS_STATE_IP_READY)
@@ -475,13 +475,13 @@ class Gprs:
         packet += password.encode(encoding='UTF-8')
         # Fill in packet length
         if 127 < len(packet)-2:
-            logging.error("Write more code 3")
+            logging.error('Write more code 3')
             raise NotImplementedError
         if 28 == len(packet):
-            logging.error("Write more code 4")
+            logging.error('Write more code 4')
             raise NotImplementedError
         if 29 == len(packet):
-            logging.error("Write more code 5")
+            logging.error('Write more code 5')
             raise NotImplementedError
         packet[1] = len(packet)-2
         # GPRS MODEM end of transmission flag
@@ -489,7 +489,7 @@ class Gprs:
         return packet
 
     def send_command(self, command, bytes, response_list, timeout, next_state):
-        logging.debug('Gprs.send_command(): Sending command %s', command)
+        logging.info('Gprs.send_command(): Sending command %s', command)
         self.command = command
         self.response_list = response_list
         self.timeout = timeout
@@ -500,6 +500,7 @@ class Gprs:
         self.ser.write(command)
         self.ser.write(b'\r\n')
         if len(bytes):
+            logging.info('Sending additional bytes')
             time.sleep(0.5)
             self.ser.write(bytes)
 
