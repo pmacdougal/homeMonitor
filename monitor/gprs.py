@@ -25,6 +25,8 @@ GPRS_STATE_CSTT = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
 GPRS_STATE_CIFSR = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
 GPRS_STATE_CIPSTART = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
 GPRS_STATE_MQTTCONNECT = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
+GPRS_STATE_PUBLISH = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
+
 #GPRS_STATE_WAIT_CONNACK = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
 
 # responses
@@ -155,6 +157,8 @@ class Gprs:
             return 'GPRS_STATE_CSTT'
         elif GPRS_STATE_MQTTCONNECT == token:
             return 'GPRS_STATE_MQTTCONNECT'
+        elif GPRS_STATE_PUBLISH == token:
+            return 'GPRS_STATE_PUBLISH'
         #elif GPRS_STATE_WAIT_CONNACK == token:
         #    return 'GPRS_STATE_WAIT_CONNACK'
         else:
@@ -229,10 +233,13 @@ class Gprs:
                 # length - 2
                 # session present - 0 or 1
                 # payload - 0, 1, 2, 3, 4, 5
-                if (b' ' == self.bytes[0]
-                   and b'\x02' == self.bytes[1]
-                   and (b'\x00' == self.bytes[2] or b'\x01' == self.bytes[2])):
-                    if b'\x00' == self.bytes[3]:
+                #if (b' ' == self.bytes[0]
+                #   and b'\x02' == self.bytes[1]
+                #   and (b'\x00' == self.bytes[2] or b'\x01' == self.bytes[2])):
+                if (32 == self.bytes[0]
+                   and 2 == self.bytes[1]
+                   and (0 == self.bytes[2] or 1 == self.bytes[2])):
+                    if 0 == self.bytes[3]:
                         logging.info('Got CONNACK from MQTT broker')
                         self.response_list.pop(0)
                         self.bytes = self.bytes[4:]
@@ -242,7 +249,7 @@ class Gprs:
                         self.state = GPRS_STATE_FOO 
 
         if not b'\r\n' in self.bytes:
-            logging.info('partial line detected %d %s', numbytes, self.bytes)
+            logging.info('partial line detected %d %s %s', numbytes, self.bytes, self.stringify(self.response_list[0]))
             return False
 
         # try to match the response (we could refactor relative to self.command)
@@ -429,7 +436,9 @@ class Gprs:
                 self.send_command(b'AT+CIPSTART="TCP","io.adafruit.com","1883"', (), [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK, GPRS_RESPONSE_BLANK, GPRS_RESPONSE_CONNECTOK], 120.0, GPRS_STATE_MQTTCONNECT)
             elif GPRS_STATE_MQTTCONNECT == self.state:
                 packet = self.buildConnectPacket()
-                self.send_command(b'AT+CIPSEND', packet, [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_SENDOK, GPRS_RESPONSE_CONNACK], 30.0, GPRS_STATE_FOO)
+                self.send_command(b'AT+CIPSEND', packet, [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_SENDOK, GPRS_RESPONSE_CONNACK], 30.0, GPRS_STATE_PUBLISH)
+            elif GPRS_STATE_PUBLISH == self.state:
+                self.is_ready = True
 
             #elif GPRS_STATE_WAIT_CONNACK == self.state:
             #    self.send_command(b'AT+CIPSTART="TCP","io.adafruit.com","1883"', (), [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK, GPRS_RESPONSE_BLANK, GPRS_RESPONSE_IPSTATUS], 65.0, GPRS_STATE_IP_READY)
@@ -512,4 +521,5 @@ class Gprs:
         return False
 
     def publish(self, topic, message):
+        logging.info(f'Gprs.publish() to {topic}')
         pass
