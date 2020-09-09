@@ -224,7 +224,7 @@ class Gprs:
             return False
 
         # handle responses that do not end with \r\n (tyically MQTT packets)
-        if GPRS_RESPONSE_CONNACK == self.response_list[0]:
+        if 0 < len(self.response_list) and GPRS_RESPONSE_CONNACK == self.response_list[0]:
             if 4 <= numbytes:
                 # opcode 32
                 # length - 2
@@ -247,7 +247,7 @@ class Gprs:
                         self.state = GPRS_STATE_FOO 
 
         if not b'\r\n' in self.bytes:
-            logging.info('partial line detected %d %s %s', numbytes, self.bytes, self.stringify(self.response_list[0]))
+            logging.info('partial line detected %d %s', numbytes, self.bytes)
             return False
 
         # try to match the response (we could refactor relative to self.command)
@@ -338,7 +338,7 @@ class Gprs:
             self.state = GPRS_STATE_FOO
 
         # hard to identify things (need regex or some such)
-        elif GPRS_RESPONSE_IPADDR == self.response_list[0]:
+        elif 0 < len(self.response_list) and GPRS_RESPONSE_IPADDR == self.response_list[0]:
             temp = self.bytes.decode(encoding='UTF-8').split('.') # xxx.xxx.xxx.xxx
             if 4 == len(temp):
                 logging.info('IP Address is %s.%s.%s.%s', temp[0], temp[1], temp[2], temp[3])
@@ -509,7 +509,7 @@ class Gprs:
         # payload
         # no length encoded here
         if isinstance(message, int):
-            packet += str(message)
+            packet += message
         else:
             packet += message.encode(encoding='UTF-8')
         # avoid "bad" length packets (28 and 29 are "bad")
