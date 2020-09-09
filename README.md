@@ -11,7 +11,7 @@ Traceback (most recent call last):
 ModuleNotFoundError: No module named 'private'
 ```
 
-This is because I have not added the file private.py.  You should create it.  It is one line with your AdaFruit IO access key in it:
+This is because I have not added the file private.py.  You should create it.  It is two lines with your AdaFruit IO username and access key in it:
 ```python
 username = 'xxxxxxxx'
 password = 'xxxxxxxxxxxxxxxxxxxxxxxxxxx'
