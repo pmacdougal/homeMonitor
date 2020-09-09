@@ -71,6 +71,7 @@ class Gprs:
         self.call_ready = False
         self.registered = False
         self.signal = 0
+        self.connected = False
         self.state_list = [None]*GPRS_STATE_MAX
         
         self.state_list[GPRS_STATE_INITIAL] = Gprs_state(self, b'AT', [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK], 5, GPRS_STATE_DISABLE_GPS)
@@ -438,7 +439,7 @@ class Gprs:
                 packet = self.buildConnectPacket()
                 self.send_command(b'AT+CIPSEND', packet, [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_SENDOK, GPRS_RESPONSE_CONNACK], 30.0, GPRS_STATE_PUBLISH)
             elif GPRS_STATE_PUBLISH == self.state:
-                self.is_ready = True
+                self.connected = True
 
             #elif GPRS_STATE_WAIT_CONNACK == self.state:
             #    self.send_command(b'AT+CIPSTART="TCP","io.adafruit.com","1883"', (), [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK, GPRS_RESPONSE_BLANK, GPRS_RESPONSE_IPSTATUS], 65.0, GPRS_STATE_IP_READY)
@@ -518,7 +519,7 @@ class Gprs:
             self.ser.write(bytes)
 
     def is_ready(self):
-        return False
+        return self.connected and not self.radio_busy
 
     def publish(self, topic, message):
         logging.info(f'Gprs.publish() to {topic}')
