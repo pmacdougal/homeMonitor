@@ -20,6 +20,7 @@ GPRS_STATE_INITIAL = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
 GPRS_STATE_IP_READY = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
 GPRS_STATE_IPSHUT = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
 GPRS_STATE_IPSPRT = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
+GPRS_STATE_KEEPALIVE = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
 GPRS_STATE_MEE = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
 GPRS_STATE_MQTTCONNECT = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
 GPRS_STATE_POWERING_UP = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
@@ -158,6 +159,8 @@ class Gprs:
             return 'GPRS_STATE_MQTTCONNECT'
         elif GPRS_STATE_PUBLISH == token:
             return 'GPRS_STATE_PUBLISH'
+        elif GPRS_STATE_KEEPALIVE == token:
+            return 'GPRS_STATE_KEEPALIVE'
         else:
             raise NotImplementedError
 
@@ -360,11 +363,12 @@ class Gprs:
         return True
 
     def loop(self):
+        self.loop_time = time.time()
         self.check_input()
         while self.process_bytes(): # this needs a timeout or iteration limit
             if 0 == len(self.response_list):
                 # we have satisfied the expected response for the command
-                logging.info('%s done in %d seconds. Next state %s. Radio is now idle.', self.command, time.time()-self.command_start_time, self.stringify(self.next_state))
+                logging.info('%s done in %d seconds. Next state %s. Radio is now idle.', self.command, self.loop_time-self.command_start_time, self.stringify(self.next_state))
                 self.radio_busy = False
                 self.state = self.next_state
 
@@ -378,7 +382,7 @@ class Gprs:
                     # Pull the power pin low for three seconds
                     RPi.GPIO.output(31, RPi.GPIO.LOW)
                     logging.info('The radio is OFF.  Pulling pwrkey low... ')
-                    self.start_time = time.time()
+                    self.start_time = self.loop_time
                     self.state = GPRS_STATE_POWERING_UP
                 else:
                     # Open the serial port
@@ -390,7 +394,7 @@ class Gprs:
                         self.send_command(b'AT', (), [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK], 5, GPRS_STATE_DISABLE_GPS)
 
             elif GPRS_STATE_POWERING_UP == self.state:
-                if 3 <= (time.time() - self.start_time):
+                if 3 <= (self.loop_time - self.start_time):
                     RPi.GPIO.output(31, RPi.GPIO.HIGH)
                     logging.info('Releasing pwrkey')
                     self.state = GPRS_STATE_INITIAL
@@ -439,7 +443,12 @@ class Gprs:
                 packet = self.build_connect_packet()
                 self.send_command(b'AT+CIPSEND', packet, [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_SENDOK, GPRS_RESPONSE_CONNACK], 30.0, GPRS_STATE_PUBLISH)
             elif GPRS_STATE_PUBLISH == self.state:
-                pass
+                # keepalive here
+                if (240 < self.loop_time - self.command_start_time):
+                    self.send_command(b'AT+CSQ', (), [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_SQ, GPRS_RESPONSE_BLANK, GPRS_RESPONSE_OK], 0.5, GPRS_STATE_KEEPALIVE)
+            elif GPRS_STATE_KEEPALIVE == self.state:
+                self.publish('s.sq', self.signal)
+                self.state = GPRS_STATE_PUBLISH
 
             elif GPRS_STATE_FOO == self.state:
                 raise KeyboardInterrupt # try to exit the program here
@@ -519,10 +528,7 @@ class Gprs:
         packet += fulltopic
         # payload
         # no length encoded here
-        if isinstance(message, int):
-            packet += self.int_to_bytes(message)
-        else:
-            packet += message.encode(encoding='UTF-8')
+        packet += ascii(message).encode(encoding='UTF-8')
         # avoid "bad" length packets (28 and 29 are "bad")
         if 28 == len(packet):
             packet += b'  '
