@@ -444,6 +444,13 @@ class Gprs:
                 # unknown state
                 logging.error('Write code to handle state %s', self.stringify(self.state))
 
+    def int_to_bytes(self, value):
+        result = b''
+        while (value > 0):
+            result = chr(48+(value%10))+result
+            value = value/10
+        return result
+
     def build_connect_packet(self):
         hostname = gethostname()
         # connect packet
@@ -509,7 +516,7 @@ class Gprs:
         # payload
         # no length encoded here
         if isinstance(message, int):
-            packet += message
+            packet += self.int_to_bytes(message)
         else:
             packet += message.encode(encoding='UTF-8')
         # avoid "bad" length packets (28 and 29 are "bad")
