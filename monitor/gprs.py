@@ -27,7 +27,7 @@ GPRS_STATE_PUBLISH = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
 GPRS_STATE_REGISTERED = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
 GPRS_STATE_SECOND_AT = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
 # responses
-GPRS_RESPONSE = 50 # something bigger than GPRS_STATE_MAX
+GPRS_RESPONSE_MAX = 50 # something bigger than GPRS_STATE_MAX
 GPRS_RESPONSE_BLANK = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
 GPRS_RESPONSE_CALR = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
 GPRS_RESPONSE_CONNACK = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
@@ -237,7 +237,7 @@ class Gprs:
                    and 2 == self.bytes[1]
                    and (0 == self.bytes[2] or 1 == self.bytes[2])):
                     if 0 == self.bytes[3]:
-                        logging.info('Got CONNACK from MQTT broker')
+                        logging.info('Got CONNACK from MQTT broker.  Connected is now true.')
                         self.response_list.pop(0)
                         self.bytes = self.bytes[4:]
                         self.connected = True
@@ -361,7 +361,7 @@ class Gprs:
         while self.process_bytes(): # this needs a timeout or iteration limit
             if 0 == len(self.response_list):
                 # we have satisfied the expected response for the command
-                logging.info('%s done in %d seconds. Next state %s', self.command, time.time()-self.command_start_time, self.stringify(self.next_state))
+                logging.info('%s done in %d seconds. Next state %s. Radio is now idle.', self.command, time.time()-self.command_start_time, self.stringify(self.next_state))
                 self.radio_busy = False
                 self.state = self.next_state
 
@@ -536,6 +536,7 @@ class Gprs:
             self.ser.write(bytes)
 
     def is_ready(self):
+        logging.info('is_ready() %s %s', self.connected, self.radio_busy)
         return self.connected and not self.radio_busy
 
     def publish(self, topic, message):
