@@ -78,8 +78,7 @@ class Barn(Monitor):
 
     def configure(self, mqtt_monitor, metering_queue):
         mqtt_monitor.topic(PumpHouse("tele/0dd92a/SENSOR", metering_queue, 240, "s.mph"))
-        #mqtt_monitor.topic(LoftTemp("tele/0dd096/SENSOR", metering_queue, 240, "s.mph"))
-        mqtt_monitor.topic(LoftTemp("tele/99e934/SENSOR", metering_queue, 240, "s.mph")) # use Garage to mimic LoftTemp during testing
+        mqtt_monitor.topic(LoftTemp("tele/0dd096/SENSOR", metering_queue, 240, "s.mph"))
 
 
 class Home(Monitor):

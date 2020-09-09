@@ -171,7 +171,7 @@ class Gprs:
                 self.bytes = self.bytes[len(string):]
             return True
         else:
-            #logging.info(f'{string} is not a prefix of {self.bytes}')
+            #logging.debug(f'{string} is not a prefix of {self.bytes}')
             return False
 
     # see if the radio responded with the expected response
@@ -179,7 +179,7 @@ class Gprs:
         if self.is_prefix(string, pop=True):
             if partial:
                 pos = self.bytes.find(b'\r\n')
-                #logging.info('%s End of line is at %d', self.bytes, pos)
+                #logging.debug('%s End of line is at %d', self.bytes, pos)
                 if -1 == pos:
                     self.remainder = self.bytes[0:]
                     self.bytes = []
@@ -214,7 +214,7 @@ class Gprs:
     # remove bytes until we reach \r\n
     def clear_to_end_of_line(self):
         pos = self.bytes.find(b'\r\n')
-        #logging.info('%s End of line is at %d', self.bytes, pos)
+        #logging.debug('%s End of line is at %d', self.bytes, pos)
         if -1 == pos:
             raise NotImplementedError
         self.bytes = self.bytes[pos+2:]
@@ -250,11 +250,11 @@ class Gprs:
                         self.state = GPRS_STATE_FOO 
 
         if not b'\r\n' in self.bytes:
-            logging.info('partial line detected %d %s', numbytes, self.bytes)
+            logging.debug('partial line detected %d %s', numbytes, self.bytes)
             return False
 
         # try to match the response (we could refactor relative to self.command)
-        logging.info(f'    Gprs.process_bytes() {self.lines_of_response} - {self.bytes}')
+        logging.debug(f'    Gprs.process_bytes() {self.lines_of_response} - {self.bytes}')
         self.lines_of_response += 1
         if self.match_response(b'\r\n', GPRS_RESPONSE_BLANK):
             pass
@@ -318,7 +318,7 @@ class Gprs:
             temp = self.remainder.decode(encoding='UTF-8').split(',') # yy/MM/dd,hh:mm:ss+zz"
             # temp[0] is yy/MM/dd
             # temp[1] is hh:mm:ss+zz"
-            logging.info('Time is %s', temp[1][0:-1])
+            logging.debug('Time is %s', temp[1][0:-1])
 
         elif self.match_response(b'+CSQ: ', GPRS_RESPONSE_SQ, partial=True):
             temp = self.remainder.decode(encoding='UTF-8').split(',')
@@ -330,7 +330,7 @@ class Gprs:
             else:
                 logging.error('This is unexpected.  len(signal) is %s', len(signal))
                 self.signal = 0
-            logging.info('Signal quality is %d', self.signal)
+            logging.debug('Signal quality is %d', self.signal)
 
         # Error conditions
         elif self.match_response(b'+PDP: DEACT\r\n', GPRS_RESPONSE_SPONTANEOUS):
@@ -347,7 +347,7 @@ class Gprs:
         elif 0 < len(self.response_list) and GPRS_RESPONSE_IPADDR == self.response_list[0]:
             temp = self.bytes.decode(encoding='UTF-8').split('.') # xxx.xxx.xxx.xxx
             if 4 == len(temp):
-                logging.info('IP Address is %s.%s.%s.%s', temp[0], temp[1], temp[2], temp[3])
+                logging.debug('IP Address is %s.%s.%s.%s', temp[0], temp[1], temp[2], temp[3])
                 self.response_list.pop(0)
                 self.clear_to_end_of_line()
             else:
@@ -540,7 +540,7 @@ class Gprs:
         return packet
 
     def send_command(self, command, bytes, response_list, timeout, next_state):
-        logging.info('Gprs.send_command(): Sending command %s', command)
+        logging.debug('Gprs.send_command(): Sending command %s', command)
         self.command = command
         self.response_list = response_list
         self.timeout = timeout
@@ -551,16 +551,16 @@ class Gprs:
         self.ser.write(command)
         self.ser.write(b'\r\n')
         if len(bytes):
-            logging.info('Sending additional bytes')
+            logging.debug('Sending additional bytes')
             time.sleep(0.5)
             self.ser.write(bytes)
 
     def is_ready(self):
-        logging.info('is_ready() %s %s', self.connected, self.radio_busy)
+        #logging.debug('is_ready() %s %s', self.connected, self.radio_busy)
         return self.connected and not self.radio_busy
 
     def publish(self, topic, message):
-        logging.info(f'Gprs.publish() to {topic}')
+        logging.debug(f'Gprs.publish() to {topic}')
         packet = self.build_message_packet(topic, message)
         self.send_command(b'AT+CIPSEND', packet, [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_SENDOK], 30.0, GPRS_STATE_PUBLISH)
 
