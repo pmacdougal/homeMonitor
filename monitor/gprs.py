@@ -509,7 +509,7 @@ class Gprs:
         # payload
         # no length encoded here
         if isinstance(message, int):
-            packet += string(message)
+            packet += str(message)
         else:
             packet += message.encode(encoding='UTF-8')
         # avoid "bad" length packets (28 and 29 are "bad")
