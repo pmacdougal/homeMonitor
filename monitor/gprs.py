@@ -500,15 +500,15 @@ class Gprs:
         packet.append(0x30) # MQTT_CTRL_PUBLISH << 4
         packet.append(0) # length for now is zero
         # Topic name
-        fulltopic = username
+        fulltopic = username.encode(encoding='UTF-8')
         fulltopic += b'/feeds/'
-        fulltopic += topic
+        fulltopic += topic.encode(encoding='UTF-8')
         packet.append(0) # length for topic name MSB
         packet.append(len(fulltopic)) # length for topic name LSB
         packet += fulltopic
         # payload
         # no length encoded here
-        packet += message
+        packet += message.encode(encoding='UTF-8')
         # avoid "bad" length packets (28 and 29 are "bad")
         if 28 == len(packet):
             packet += b'  '
