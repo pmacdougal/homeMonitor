@@ -7,44 +7,42 @@ from monitor.private import username, password
 
 # states
 GPRS_STATE_MAX = 0
-GPRS_STATE_FOO = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
-GPRS_STATE_INITIAL = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
-GPRS_STATE_POWERING_UP = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
-GPRS_STATE_DISABLE_GPS = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
-GPRS_STATE_IP_READY = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
-GPRS_STATE_SECOND_AT = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
-GPRS_STATE_MEE = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
-GPRS_STATE_IPSPRT = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
 GPRS_STATE_CALL_READY = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
-GPRS_STATE_REGISTERED = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
+GPRS_STATE_CIFSR = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
+GPRS_STATE_CIICR = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
+GPRS_STATE_CIPSTART = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
 GPRS_STATE_CLK = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
 GPRS_STATE_CSQ = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
-GPRS_STATE_IPSHUT = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
-GPRS_STATE_CIICR = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
 GPRS_STATE_CSTT = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
-GPRS_STATE_CIFSR = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
-GPRS_STATE_CIPSTART = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
+GPRS_STATE_DISABLE_GPS = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
+GPRS_STATE_FOO = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
+GPRS_STATE_INITIAL = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
+GPRS_STATE_IP_READY = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
+GPRS_STATE_IPSHUT = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
+GPRS_STATE_IPSPRT = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
+GPRS_STATE_MEE = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
 GPRS_STATE_MQTTCONNECT = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
+GPRS_STATE_POWERING_UP = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
 GPRS_STATE_PUBLISH = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
-
-#GPRS_STATE_WAIT_CONNACK = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
-
+GPRS_STATE_REGISTERED = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
+GPRS_STATE_SECOND_AT = GPRS_STATE_MAX; GPRS_STATE_MAX += 1
 # responses
-GPRS_RESPONSE_BLANK = 50
-GPRS_RESPONSE_OK = 51
-GPRS_RESPONSE_ECHO = 52
+GPRS_RESPONSE = 50 # something bigger than GPRS_STATE_MAX
+GPRS_RESPONSE_BLANK = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
+GPRS_RESPONSE_CALR = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
+GPRS_RESPONSE_CONNACK = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
+GPRS_RESPONSE_CONNECTOK = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
+GPRS_RESPONSE_ECHO = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
+GPRS_RESPONSE_IPADDR = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
+GPRS_RESPONSE_IPSTATUS = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
+GPRS_RESPONSE_OK = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
+GPRS_RESPONSE_REG = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
+GPRS_RESPONSE_SENDOK = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
+GPRS_RESPONSE_SHUTOK = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
+GPRS_RESPONSE_SPONTANEOUS = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
+GPRS_RESPONSE_SQ = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
+GPRS_RESPONSE_TIME = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
 
-GPRS_RESPONSE_IPSTATUS = 54
-GPRS_RESPONSE_CALR = 55
-GPRS_RESPONSE_REG = 56
-GPRS_RESPONSE_SQ = 57
-GPRS_RESPONSE_SHUTOK = 58
-GPRS_RESPONSE_TIME = 59
-GPRS_RESPONSE_SPONTANEOUS = 60
-GPRS_RESPONSE_IPADDR = 61
-GPRS_RESPONSE_CONNACK = 62
-GPRS_RESPONSE_SENDOK = 63
-GPRS_RESPONSE_CONNECTOK = 64
 
 class Gprs_state:
     def __init__(self, machine, response_list, response_count, next_state, command_string):
@@ -160,8 +158,6 @@ class Gprs:
             return 'GPRS_STATE_MQTTCONNECT'
         elif GPRS_STATE_PUBLISH == token:
             return 'GPRS_STATE_PUBLISH'
-        #elif GPRS_STATE_WAIT_CONNACK == token:
-        #    return 'GPRS_STATE_WAIT_CONNACK'
         else:
             raise NotImplementedError
 
@@ -244,6 +240,7 @@ class Gprs:
                         logging.info('Got CONNACK from MQTT broker')
                         self.response_list.pop(0)
                         self.bytes = self.bytes[4:]
+                        self.connected = True
                         return True
                     else:
                         logging.error('CONNACK connection refused.  Status %s', self.bytes[3])
@@ -436,15 +433,10 @@ class Gprs:
             elif GPRS_STATE_CIPSTART == self.state:
                 self.send_command(b'AT+CIPSTART="TCP","io.adafruit.com","1883"', (), [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK, GPRS_RESPONSE_BLANK, GPRS_RESPONSE_CONNECTOK], 120.0, GPRS_STATE_MQTTCONNECT)
             elif GPRS_STATE_MQTTCONNECT == self.state:
-                packet = self.buildConnectPacket()
+                packet = self.build_connect_packet()
                 self.send_command(b'AT+CIPSEND', packet, [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_SENDOK, GPRS_RESPONSE_CONNACK], 30.0, GPRS_STATE_PUBLISH)
             elif GPRS_STATE_PUBLISH == self.state:
-                self.connected = True
-
-            #elif GPRS_STATE_WAIT_CONNACK == self.state:
-            #    self.send_command(b'AT+CIPSTART="TCP","io.adafruit.com","1883"', (), [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK, GPRS_RESPONSE_BLANK, GPRS_RESPONSE_IPSTATUS], 65.0, GPRS_STATE_IP_READY)
-            #    self.response_list = [GPRS_RESPONSE_CONNACK]
-            #    self.next_state = GPRS_STATE_FOO
+                pass
 
             elif GPRS_STATE_FOO == self.state:
                 raise KeyboardInterrupt # try to exit the program here
@@ -452,7 +444,7 @@ class Gprs:
                 # unknown state
                 logging.error('Write code to handle state %s', self.stringify(self.state))
 
-    def buildConnectPacket(self):
+    def build_connect_packet(self):
         hostname = gethostname()
         # connect packet
         packet = bytearray(0)
@@ -502,6 +494,31 @@ class Gprs:
         packet.append(26) # not really part of the packet
         return packet
 
+    def build_message_packet(self, topic, message):
+        # publish packet
+        packet = bytearray(0)
+        packet.append(0x30) # MQTT_CTRL_PUBLISH << 4
+        packet.append(0) # length for now is zero
+        # Topic name
+        fulltopic = username
+        fulltopic += b'/feeds/'
+        fulltopic += topic
+        packet.append(0) # length for topic name MSB
+        packet.append(len(fulltopic)) # length for topic name LSB
+        packet += fulltopic
+        # payload
+        # no length encoded here
+        packet += message
+        # avoid "bad" length packets (28 and 29 are "bad")
+        if 28 == len(packet):
+            packet += b'  '
+        if 29 == len(packet):
+            packet += b' '
+        packet[1] = len(packet)-2 # fill in the length
+        packet.append(26) # not really part of the packet
+
+        return packet
+
     def send_command(self, command, bytes, response_list, timeout, next_state):
         logging.info('Gprs.send_command(): Sending command %s', command)
         self.command = command
@@ -523,4 +540,6 @@ class Gprs:
 
     def publish(self, topic, message):
         logging.info(f'Gprs.publish() to {topic}')
-        pass
+        packet = self.build_message_packet(topic, message)
+        self.send_command(b'AT+CIPSEND', packet, [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_SENDOK], 30.0, GPRS_STATE_PUBLISH)
+
