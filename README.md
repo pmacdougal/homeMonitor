@@ -13,5 +13,6 @@ ModuleNotFoundError: No module named 'private'
 
 This is because I have not added the file private.py.  You should create it.  It is one line with your AdaFruit IO access key in it:
 ```python
-password = "xxxxxxxxxxxxxxxxxxxxxxxxxxx"
+username = 'xxxxxxxx'
+password = 'xxxxxxxxxxxxxxxxxxxxxxxxxxx'
 ```
