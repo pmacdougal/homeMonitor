@@ -334,6 +334,9 @@ class Gprs:
             self.state = GPRS_STATE_FOO
         elif self.match_response(b'ERROR\r\n', GPRS_RESPONSE_SPONTANEOUS):
             self.state = GPRS_STATE_FOO
+        elif self.match_response(b'CLOSED\r\n', GPRS_RESPONSE_SPONTANEOUS):
+            self.connected = False
+            self.state = GPRS_STATE_FOO
         elif self.match_response(b'CONNECT FAIL\r\n', GPRS_RESPONSE_SPONTANEOUS):
             self.state = GPRS_STATE_FOO
 
@@ -447,7 +450,7 @@ class Gprs:
     def int_to_bytes(self, value):
         result = b''
         while (value > 0):
-            result = chr(48+(value%10))+result
+            result = (chr(48+(value%10))).encode(encoding='UTF-8')+result
             value = value/10
         return result
 
@@ -507,7 +510,8 @@ class Gprs:
         packet.append(0x30) # MQTT_CTRL_PUBLISH << 4
         packet.append(0) # length for now is zero
         # Topic name
-        fulltopic = username.encode(encoding='UTF-8')
+        fulltopic = b''
+        fulltopic += username.encode(encoding='UTF-8')
         fulltopic += b'/feeds/'
         fulltopic += topic.encode(encoding='UTF-8')
         packet.append(0) # length for topic name MSB
