@@ -181,6 +181,7 @@ class Gprs:
     Class for GPRS radio HAT
     """
     def __init__(self, port):
+        logging.debug('Constructing Gprs object')
         self.port = port
         self.radio_busy = False
         self.ser = None
@@ -213,10 +214,12 @@ class Gprs:
             'GPRS_STATE_PUBLISH', 
             'GPRS_STATE_REGISTERED', 
             'GPRS_STATE_SECOND_AT')
+        logging.debug('about to do list comprehension')
         self.state_string_to_int_dict = {s: idx for idx, s in enumerate(self.state_string_list)}
         self.state = self.state_string_to_int_dict['GPRS_STATE_INITIAL']
         self.next_state = self.state_string_to_int_dict['GPRS_STATE_FOO']
 
+        logging.debug('About to fill state list')
         self.state_list = [None]*len(self.state_string_to_int_dict)        
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_INITIAL']]     = GprsState(self, b'AT',           [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK], 5, self.state_string_to_int_dict['GPRS_STATE_DISABLE_GPS'], prefix='power_up')
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_POWERING_UP']] = GprsState(self, b'',             [], 0.0, self.state_string_to_int_dict['GPRS_STATE_POWERING_UP'], prefix='pu_delay')
@@ -489,6 +492,7 @@ class Gprs:
         return True
 
     def loop(self):
+        logging.debug('loop')
         self.loop_time = time.time()
         self.check_input()
         while self.process_bytes(): # this needs a timeout or iteration limit
@@ -505,6 +509,7 @@ class Gprs:
         else:
             # Here is where we execute the state machine that controls connecting
             # the radio to the AdaFruit MQTT broker
+            logging.debug('about to step the machine')
             try:
                 self.state_list[self.state_string_to_int_dict[self.state]].run()
 
