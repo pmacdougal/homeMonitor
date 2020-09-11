@@ -5,6 +5,12 @@ import RPi.GPIO
 from socket import gethostname
 from monitor.private import username, password
 
+'''
+ToDo:
+    implement a DELAY state
+    test powering up the radio
+'''
+
 # responses
 GPRS_RESPONSE_MAX = 50 # something bigger than GPRS_STATE_MAX
 GPRS_RESPONSE_BLANK = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
@@ -72,7 +78,7 @@ class GprsState:
             return 1
         elif 1 < self.loop_count:
             time.sleep(1)
-         elif 20 == self.loop_count:
+        elif 20 == self.loop_count:
             logging.warning("method_cr_loop() stuck in loop")
             self.radio.state = self.radio.state_string_to_int_dict['GPRS_STATE_FOO']
             return 1
@@ -90,7 +96,7 @@ class GprsState:
             return 1
         elif 1 < self.loop_count:
             time.sleep(1)
-         elif 20 == self.loop_count:
+        elif 20 == self.loop_count:
             logging.warning("method_reg_loop() stuck in loop")
             self.radio.state = self.radio.state_string_to_int_dict['GPRS_STATE_FOO']
             return 1
@@ -142,6 +148,7 @@ class GprsState:
         """
         handle errors
         """
+        logging.info('method_foo()')
         raise KeyboardInterrupt # try to exit the program here
 
     def method_power_up(self):
@@ -408,7 +415,7 @@ class Gprs:
             return False
 
         # try to match the response (we could refactor relative to self.command)
-        logging.debug('    Gprs.process_bytes() %s - %s', self.lines_of_response, self.bytes)
+        logging.debug('    Gprs.process_bytes() %s - %s %s', self.lines_of_response, self.bytes, self.response_list)
         self.lines_of_response += 1
         if self.match_response(b'\r\n', GPRS_RESPONSE_BLANK):
             pass
