@@ -311,7 +311,8 @@ class Gprs:
         more docstring stuff
         """
         if None != self.ser and 0 < self.ser.in_waiting:
-            newbytes = self.ser.read_until(terminator=b'\r\n', timeout=1)
+            self.ser.timeout = 1
+            newbytes = self.ser.read_until(terminator=b'\r\n')
             self.bytes += newbytes
 
     def stringify_response(self, token):
