@@ -474,19 +474,28 @@ class Gprs:
         elif self.match_response(b'STATE: IP STATUS\r\n', GPRS_RESPONSE_IPSTATUS):
             self.next_state = self.state_string_to_int_dict['GPRS_STATE_CIPSTART']
         elif self.match_response(b'STATE: TCP CLOSED\r\n', GPRS_RESPONSE_IPSTATUS):
-            #sendATCommand('AT+CIICR', 2, 15.0)
+            self.next_state = self.state_string_to_int_dict['GPRS_STATE_IPSHUT']
             pass
         elif self.match_response(b'STATE: IP CONFIG\r\n', GPRS_RESPONSE_IPSTATUS):
-            #time.sleep(3)
-            pass
+            logging.debug('Delay 3 seconds before going into state GPRS_STATE_IP_STATUS')
+            self.state = self.state_string_to_int_dict['GPRS_STATE_DELAY']
+            self.start_delay_time = time.time()
+            self.next_state = self.state_string_to_int_dict['GPRS_STATE_IP_STATUS']
+            self.delay_time = 3
         elif self.match_response(b'STATE: TCP CONNECTING\r\n', GPRS_RESPONSE_IPSTATUS):
-            #time.sleep(10)
-            pass
+            logging.debug('Delay 10 seconds before going into state GPRS_STATE_IP_STATUS')
+            self.state = self.state_string_to_int_dict['GPRS_STATE_DELAY']
+            self.start_delay_time = time.time()
+            self.next_state = self.state_string_to_int_dict['GPRS_STATE_IP_STATUS']
+            self.delay_time = 10
         elif self.match_response(b'STATE: TCP CLOSING\r\n', GPRS_RESPONSE_IPSTATUS):
-            pass
+            logging.debug('Delay 3 seconds before going into state GPRS_STATE_IP_STATUS')
+            self.state = self.state_string_to_int_dict['GPRS_STATE_DELAY']
+            self.start_delay_time = time.time()
+            self.next_state = self.state_string_to_int_dict['GPRS_STATE_IP_STATUS']
+            self.delay_time = 3
         elif self.match_response(b'STATE: PDP DEACT\r\n', GPRS_RESPONSE_IPSTATUS):
-            # what do I do?
-            pass
+            self.next_state = self.state_string_to_int_dict['GPRS_STATE_IPSHUT']
         elif self.match_response(b'CONNECT OK\r\n', GPRS_RESPONSE_CONNECTOK):
             pass
         elif self.match_response(b'+CCALR: 0\r\n', GPRS_RESPONSE_CALR):
