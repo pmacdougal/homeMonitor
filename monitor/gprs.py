@@ -77,6 +77,7 @@ class GprsState:
             self.loop_count = 0
             return 1
         elif 1 < self.loop_count:
+            logging.debug('method_cr_loop() count %d', self.loop_count)
             time.sleep(1)
         elif 20 == self.loop_count:
             logging.warning("method_cr_loop() stuck in loop")
@@ -95,6 +96,7 @@ class GprsState:
             self.loop_count = 0
             return 1
         elif 1 < self.loop_count:
+            logging.debug('method_reg_loop() count %d', self.loop_count)
             time.sleep(1)
         elif 20 == self.loop_count:
             logging.warning("method_reg_loop() stuck in loop")
@@ -112,6 +114,7 @@ class GprsState:
             self.loop_count = 0
             return 1
         elif 1 < self.loop_count:
+            logging.debug('method_sq_loop() count %d', self.loop_count)
             time.sleep(1)
         elif 20 == self.loop_count:
             logging.warning("method_sq_loop() stuck in loop")
