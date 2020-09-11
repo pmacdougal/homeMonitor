@@ -38,6 +38,7 @@ class GprsState:
         self.prefix = prefix
         self.suffix = suffix
         self.packet = ()
+        self.loop_count = 0
         
     def method_return_zero(self):
         """
@@ -56,15 +57,24 @@ class GprsState:
         clear call ready in the radio
         """
         self.radio.call_ready = False
+        self.loop_count = 0
         return 0
 
     def method_cr_loop(self):
         """
         if radio is ready to make a call, return 1
         """
+        self.loop_count += 1
         if self.radio.call_ready:
             self.radio.state = self.radio.state_string_to_int_dict['GPRS_STATE_REGISTERED']
             self.radio.registered = False
+            self.loop_count = 0
+            return 1
+        elif 1 < self.loop_count:
+            time.sleep(1)
+         elif 20 == self.loop_count:
+            logging.warning("method_cr_loop() stuck in loop")
+            self.radio.state = self.radio.state_string_to_int_dict['GPRS_STATE_FOO']
             return 1
         return 0
 
@@ -72,9 +82,17 @@ class GprsState:
         """
         if radio is registered on the network, return 1
         """
+        self.loop_count += 1
         if self.radio.registered:
             self.radio.state = self.radio.state_string_to_int_dict['GPRS_STATE_CLK']
             self.radio.signal = 0
+            self.loop_count = 0
+            return 1
+        elif 1 < self.loop_count:
+            time.sleep(1)
+         elif 20 == self.loop_count:
+            logging.warning("method_reg_loop() stuck in loop")
+            self.radio.state = self.radio.state_string_to_int_dict['GPRS_STATE_FOO']
             return 1
         return 0
 
@@ -82,8 +100,16 @@ class GprsState:
         """
         if radio has sufficient signal strength, return 1
         """
+        self.loop_count += 1
         if 4 < self.radio.signal:
             self.radio.state = self.radio.state_string_to_int_dict['GPRS_STATE_IPSHUT']
+            self.loop_count = 0
+            return 1
+        elif 1 < self.loop_count:
+            time.sleep(1)
+        elif 20 == self.loop_count:
+            logging.warning("method_sq_loop() stuck in loop")
+            self.radio.state = self.radio.state_string_to_int_dict['GPRS_STATE_FOO']
             return 1
         return 0
 
@@ -169,7 +195,8 @@ class GprsState:
         ret1 = self.METHODS[self.prefix](self)
         ret2 = 0
         if 0 == ret1:
-            self.radio.send_command(self.command_string, self.packet, self.response_list, self.timeout, self.next_state)
+            # make a copy of the response list in case we re-visit this state
+            self.radio.send_command(self.command_string, self.packet, self.response_list.copy(), self.timeout, self.next_state)
             self.packet = ()
             ret2 = self.METHODS[self.suffix](self)
             self.radio.state = self.next_state
@@ -204,7 +231,7 @@ class Gprs:
             'GPRS_STATE_DISABLE_GPS', 
             'GPRS_STATE_FOO', 
             'GPRS_STATE_INITIAL', 
-            'GPRS_STATE_IP_READY', 
+            'GPRS_STATE_IP_STATUS', 
             'GPRS_STATE_IPSHUT', 
             'GPRS_STATE_IPSPRT', 
             'GPRS_STATE_KEEPALIVE', 
@@ -229,11 +256,11 @@ class Gprs:
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_REGISTERED']]  = GprsState(self, b'AT+CREG?',  [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_REG, GPRS_RESPONSE_BLANK, GPRS_RESPONSE_OK], 0.5, self.state_string_to_int_dict['GPRS_STATE_REGISTERED'], prefix='loop_reg')
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_CLK']]         = GprsState(self, b'AT+CCLK?',     [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_TIME, GPRS_RESPONSE_BLANK, GPRS_RESPONSE_OK], 0.5, self.state_string_to_int_dict['GPRS_STATE_CSQ'])
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_CSQ']]         = GprsState(self, b'AT+CSQ',       [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_SQ, GPRS_RESPONSE_BLANK, GPRS_RESPONSE_OK], 0.5, self.state_string_to_int_dict['GPRS_STATE_CSQ'], prefix='loop_sq')
-        self.state_list[self.state_string_to_int_dict['GPRS_STATE_IPSHUT']]      = GprsState(self, b'AT+CIPSHUT',   [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_SHUTOK], 15.0, self.state_string_to_int_dict['GPRS_STATE_IP_READY'])
-        self.state_list[self.state_string_to_int_dict['GPRS_STATE_IP_READY']]    = GprsState(self, b'AT+CIPSTATUS', [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK, GPRS_RESPONSE_BLANK, GPRS_RESPONSE_IPSTATUS], 0.5, self.state_string_to_int_dict['GPRS_STATE_IP_READY'])
-        self.state_list[self.state_string_to_int_dict['GPRS_STATE_CSTT']]        = GprsState(self, b'AT+CSTT="m2mglobal"', [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK], 0.5, self.state_string_to_int_dict['GPRS_STATE_IP_READY'])
-        self.state_list[self.state_string_to_int_dict['GPRS_STATE_CIICR']]       = GprsState(self, b'AT+CIICR',     [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK], 65.0, self.state_string_to_int_dict['GPRS_STATE_IP_READY'])
-        self.state_list[self.state_string_to_int_dict['GPRS_STATE_CIFSR']]       = GprsState(self, b'AT+CIFSR',     [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK], 2.5, self.state_string_to_int_dict['GPRS_STATE_IP_READY'])
+        self.state_list[self.state_string_to_int_dict['GPRS_STATE_IPSHUT']]      = GprsState(self, b'AT+CIPSHUT',   [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_SHUTOK], 15.0, self.state_string_to_int_dict['GPRS_STATE_IP_STATUS'])
+        self.state_list[self.state_string_to_int_dict['GPRS_STATE_IP_STATUS']]   = GprsState(self, b'AT+CIPSTATUS', [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK, GPRS_RESPONSE_BLANK, GPRS_RESPONSE_IPSTATUS], 0.5, self.state_string_to_int_dict['GPRS_STATE_IP_STATUS'])
+        self.state_list[self.state_string_to_int_dict['GPRS_STATE_CSTT']]        = GprsState(self, b'AT+CSTT="m2mglobal"', [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK], 0.5, self.state_string_to_int_dict['GPRS_STATE_IP_STATUS'])
+        self.state_list[self.state_string_to_int_dict['GPRS_STATE_CIICR']]       = GprsState(self, b'AT+CIICR',     [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK], 65.0, self.state_string_to_int_dict['GPRS_STATE_IP_STATUS'])
+        self.state_list[self.state_string_to_int_dict['GPRS_STATE_CIFSR']]       = GprsState(self, b'AT+CIFSR',     [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK], 2.5, self.state_string_to_int_dict['GPRS_STATE_IP_STATUS'])
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_CIPSTART']]    = GprsState(self, b'AT+CIPSTART="TCP","io.adafruit.com","1883"', [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK, GPRS_RESPONSE_BLANK, GPRS_RESPONSE_CONNECTOK], 120.0, self.state_string_to_int_dict['GPRS_STATE_MQTTCONNECT'])
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_MQTTCONNECT']] = GprsState(self, b'AT+CIPSEND',   [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK], 30.0, self.state_string_to_int_dict['GPRS_STATE_PUBLISH'], prefix='build_connect_packet')
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_PUBLISH']]     = GprsState(self, b'AT+CSQ',       [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK], 0.5, self.state_string_to_int_dict['GPRS_STATE_PUBLISH'], prefix='keep_alive')
@@ -490,7 +517,7 @@ class Gprs:
         return True
 
     def loop(self):
-        logging.debug('loop')
+        #logging.debug('loop')
         self.loop_time = time.time()
         self.check_input()
         while self.process_bytes(): # this needs a timeout or iteration limit
@@ -622,6 +649,8 @@ class Gprs:
 
     def publish(self, topic, message):
         logging.debug('Gprs.publish() to %s', topic)
+        if self.radio_busy:
+            raise NotImplementedError
         packet = self.build_message_packet(topic, message)
         self.send_command(b'AT+CIPSEND', packet, [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_SENDOK], 30.0, self.state_string_to_int_dict['GPRS_STATE_PUBLISH'])
 
