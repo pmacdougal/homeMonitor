@@ -21,6 +21,7 @@ GPRS_RESPONSE_ECHO = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
 GPRS_RESPONSE_IPADDR = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
 GPRS_RESPONSE_IPSTATUS = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
 GPRS_RESPONSE_OK = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
+GPRS_RESPONSE_ERROR = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
 GPRS_RESPONSE_REG = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
 GPRS_RESPONSE_SENDOK = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
 GPRS_RESPONSE_SHUTOK = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
@@ -135,8 +136,8 @@ class GprsState:
         We publish the radio signal quality if nothing else is going on
         """
         if (240 < self.radio.loop_time - self.radio.command_start_time):
-            return 1
-        return 0
+            return 0
+        return 1
 
     def method_publish_sq(self):
         """
@@ -291,7 +292,7 @@ class Gprs:
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_IP_STATUS']]   = GprsState(self, b'AT+CIPSTATUS', [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK, GPRS_RESPONSE_BLANK, GPRS_RESPONSE_IPSTATUS], self.state_string_to_int_dict['GPRS_STATE_IP_STATUS'])
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_CSTT']]        = GprsState(self, b'AT+CSTT="m2mglobal"', [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK], self.state_string_to_int_dict['GPRS_STATE_IP_STATUS'])
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_CIICR']]       = GprsState(self, b'AT+CIICR',     [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK], self.state_string_to_int_dict['GPRS_STATE_IP_STATUS'])
-        self.state_list[self.state_string_to_int_dict['GPRS_STATE_CIFSR']]       = GprsState(self, b'AT+CIFSR',     [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_IPADDR], self.state_string_to_int_dict['GPRS_STATE_IP_STATUS'])
+        self.state_list[self.state_string_to_int_dict['GPRS_STATE_CIFSR']]       = GprsState(self, b'AT+CIFSR',     [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_IPADDR], self.state_string_to_int_dict['GPRS_STATE_IP_STATUS'], delay=5)
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_CIPSTART']]    = GprsState(self, b'AT+CIPSTART="TCP","io.adafruit.com","1883"', [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK, GPRS_RESPONSE_BLANK, GPRS_RESPONSE_CONNECTOK], self.state_string_to_int_dict['GPRS_STATE_MQTTCONNECT'])
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_MQTTCONNECT']] = GprsState(self, b'AT+CIPSEND',   [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_SENDOK, GPRS_RESPONSE_CONNACK], self.state_string_to_int_dict['GPRS_STATE_PUBLISH'], prefix='build_connect_packet')
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_PUBLISH']]     = GprsState(self, b'AT+CSQ',       [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK], self.state_string_to_int_dict['GPRS_STATE_PUBLISH'], prefix='keep_alive')
@@ -376,7 +377,7 @@ class Gprs:
             # match with the expected response
             if (GPRS_RESPONSE_SPONTANEOUS == response):
                 # don't match this with expected responses
-                pass
+                return True
             else:
                 str_response = self.stringify_response(response)
                 #logging.debug('Gprs.match_response(): found %s line', str_response)
@@ -529,9 +530,12 @@ class Gprs:
 
         # Error conditions
         elif self.match_response(b'+PDP: DEACT\r\n', GPRS_RESPONSE_SPONTANEOUS):
-            self.state = self.state_string_to_int_dict['GPRS_STATE_FOO']
-        elif self.match_response(b'ERROR\r\n', GPRS_RESPONSE_OK):
-            self.state = self.state_string_to_int_dict['GPRS_STATE_FOO']
+            if (1 == len(self.response_list)
+            and GPRS_RESPONSE_OK == self.response_list[0]
+            and self.state_string_to_int_dict['GPRS_STATE_CIICR'] == self.state):
+                self.response_list = [GPRS_RESPONSE_BLANK, GPRS_RESPONSE_ERROR]
+        elif self.match_response(b'ERROR\r\n', GPRS_RESPONSE_ERROR):
+            pass
         elif self.match_response(b'CLOSED\r\n', GPRS_RESPONSE_SPONTANEOUS):
             self.connected = False
             self.state = self.state_string_to_int_dict['GPRS_STATE_FOO']
