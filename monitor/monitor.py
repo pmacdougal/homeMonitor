@@ -53,10 +53,10 @@ class Monitor:
                     else:
                         aio.loop()
                 except Exception as e:
-                    logging.error(f"Exception: {e}")
+                    logging.error('Exception: %s', e)
 
         except Exception as e:
-            logging.error(f"Exception: {e}")
+            logging.error('Exception: %s', e)
             status = 1
         except KeyboardInterrupt:
             status = 2

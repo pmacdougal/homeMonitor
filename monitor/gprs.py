@@ -73,17 +73,19 @@ class GprsState:
         """
         self.loop_count += 1
         if self.radio.call_ready:
+            self.radio.previous_state = self.radio.state
             self.radio.state = self.radio.state_string_to_int_dict['GPRS_STATE_REGISTERED']
             self.radio.registered = False
             self.loop_count = 0
             return 1
+        elif False and 20 == self.loop_count:
+            logging.warning("method_cr_loop() stuck in loop")
+            self.radio.previous_state = self.radio.state
+            self.radio.state = self.radio.state_string_to_int_dict['GPRS_STATE_FOO']
+            return 1
         elif 1 < self.loop_count:
             logging.debug('method_cr_loop() count %d', self.loop_count)
             time.sleep(1)
-        elif 20 == self.loop_count:
-            logging.warning("method_cr_loop() stuck in loop")
-            self.radio.state = self.radio.state_string_to_int_dict['GPRS_STATE_FOO']
-            return 1
         return 0
 
     def method_reg_loop(self):
@@ -92,17 +94,19 @@ class GprsState:
         """
         self.loop_count += 1
         if self.radio.registered:
+            self.radio.previous_state = self.radio.state
             self.radio.state = self.radio.state_string_to_int_dict['GPRS_STATE_CLK']
             self.radio.signal = 0
             self.loop_count = 0
             return 1
+        elif False and 20 == self.loop_count:
+            logging.warning("method_reg_loop() stuck in loop")
+            self.radio.previous_state = self.radio.state
+            self.radio.state = self.radio.state_string_to_int_dict['GPRS_STATE_FOO']
+            return 1
         elif 1 < self.loop_count:
             logging.debug('method_reg_loop() count %d', self.loop_count)
             time.sleep(1)
-        elif 20 == self.loop_count:
-            logging.warning("method_reg_loop() stuck in loop")
-            self.radio.state = self.radio.state_string_to_int_dict['GPRS_STATE_FOO']
-            return 1
         return 0
 
     def method_sq_loop(self):
@@ -114,13 +118,14 @@ class GprsState:
             self.radio.state = self.radio.state_string_to_int_dict['GPRS_STATE_IPSHUT']
             self.loop_count = 0
             return 1
+        elif False and 20 == self.loop_count:
+            logging.warning("method_sq_loop() stuck in loop")
+            self.radio.previous_state = self.radio.state
+            self.radio.state = self.radio.state_string_to_int_dict['GPRS_STATE_FOO']
+            return 1
         elif 1 < self.loop_count:
             logging.debug('method_sq_loop() count %d', self.loop_count)
             time.sleep(1)
-        elif 20 == self.loop_count:
-            logging.warning("method_sq_loop() stuck in loop")
-            self.radio.state = self.radio.state_string_to_int_dict['GPRS_STATE_FOO']
-            return 1
         return 0
 
     def method_build_connect_packet(self):
@@ -145,6 +150,7 @@ class GprsState:
         always returns 1, so that we do not do a radio.send_command
         """
         self.radio.publish('s.sq', self.radio.signal)
+        self.radio.previous_state = self.radio.state
         self.radio.state = self.radio.state_string_to_int_dict['GPRS_STATE_PUBLISH']
         return 1
 
@@ -165,6 +171,7 @@ class GprsState:
             RPi.GPIO.output(31, RPi.GPIO.LOW)
             logging.info('The radio is OFF.  Pulling pwrkey low... ')
             self.radio.start_time = self.radio.loop_time
+            self.radio.previous_state = self.radio.state
             self.radio.state = self.radio.state_string_to_int_dict['GPRS_STATE_POWERING_UP']
             return 1
         else:
@@ -183,6 +190,7 @@ class GprsState:
         if 3 <= (self.radio.loop_time - self.radio.start_time):
             RPi.GPIO.output(31, RPi.GPIO.HIGH)
             logging.info('Releasing pwrkey')
+            self.radio.previous_state = self.radio.state
             self.radio.state = self.radio.state_string_to_int_dict['GPRS_STATE_INITIAL']
         return 1
 
@@ -193,6 +201,7 @@ class GprsState:
         """
         if self.radio.delay_time <= (self.radio.loop_time - self.radio.start_delay_time):
             logging.debug("Advance to %s", self.radio.state_string_list[self.radio.next_state])
+            self.radio.previous_state = self.radio.state
             self.radio.state = self.radio.next_state
         return 1
 
@@ -223,11 +232,13 @@ class GprsState:
             ret2 = self.METHODS[self.suffix](self)
             if 0 < self.delay:
                 logging.debug("Delay %d seconds before going into state %s", self.delay, self.radio.state_string_list[self.next_state])
+                self.radio.previous_state = self.radio.state
                 self.radio.state = self.radio.state_string_to_int_dict['GPRS_STATE_DELAY']
                 self.radio.start_delay_time = time.time()
                 self.radio.next_state = self.next_state
                 self.radio.delay_time = self.delay
             else:
+                self.radio.previous_state = self.radio.state
                 self.radio.state = self.next_state
         return ret1, ret2
 
@@ -271,6 +282,7 @@ class Gprs:
             'GPRS_STATE_REGISTERED',
             'GPRS_STATE_SECOND_AT')
         self.state_string_to_int_dict = {s: idx for idx, s in enumerate(self.state_string_list)}
+        self.previous_state = self.state_string_to_int_dict['GPRS_STATE_INITIAL']
         self.state = self.state_string_to_int_dict['GPRS_STATE_INITIAL']
         self.next_state = self.state_string_to_int_dict['GPRS_STATE_FOO']
         self.start_delay_time = 0
@@ -389,11 +401,13 @@ class Gprs:
                     else:
                         logging.error('Gprs.match_response(): found %s line where %s was expected', str_response, self.stringify_response(self.response_list[0]))
                         # What do we do now?
+                        self.previous_state = self.state
                         self.state = self.state_string_to_int_dict['GPRS_STATE_FOO']
 
                 else:
                     # got a blank line while not expecting any response
                     logging.error('Gprs.match_response(): found blank line where nothing was expected')
+                    self.previous_state = self.state
                     self.state = self.state_string_to_int_dict['GPRS_STATE_FOO']
 
         return False
@@ -416,6 +430,7 @@ class Gprs:
         # handle responses that do not end with \r\n (tyically MQTT packets)
         if 0 < len(self.response_list) and GPRS_RESPONSE_CONNACK == self.response_list[0]:
             if 4 <= numbytes:
+                # MQTT CONNACK packet
                 # opcode 32
                 # length - 2
                 # session present - 0 or 1
@@ -434,6 +449,7 @@ class Gprs:
                         return True
                     else:
                         logging.error('CONNACK connection refused.  Status %s', self.bytes[3])
+                        self.previous_state = self.state
                         self.state = self.state_string_to_int_dict['GPRS_STATE_FOO']
 
         if not b'\r\n' in self.bytes:
@@ -479,18 +495,21 @@ class Gprs:
             pass
         elif self.match_response(b'STATE: IP CONFIG\r\n', GPRS_RESPONSE_IPSTATUS):
             logging.debug('Delay 3 seconds before going into state GPRS_STATE_IP_STATUS')
+            self.previous_state = self.state
             self.state = self.state_string_to_int_dict['GPRS_STATE_DELAY']
             self.start_delay_time = time.time()
             self.next_state = self.state_string_to_int_dict['GPRS_STATE_IP_STATUS']
             self.delay_time = 3
         elif self.match_response(b'STATE: TCP CONNECTING\r\n', GPRS_RESPONSE_IPSTATUS):
             logging.debug('Delay 10 seconds before going into state GPRS_STATE_IP_STATUS')
+            self.previous_state = self.state
             self.state = self.state_string_to_int_dict['GPRS_STATE_DELAY']
             self.start_delay_time = time.time()
             self.next_state = self.state_string_to_int_dict['GPRS_STATE_IP_STATUS']
             self.delay_time = 10
         elif self.match_response(b'STATE: TCP CLOSING\r\n', GPRS_RESPONSE_IPSTATUS):
             logging.debug('Delay 3 seconds before going into state GPRS_STATE_IP_STATUS')
+            self.previous_state = self.state
             self.state = self.state_string_to_int_dict['GPRS_STATE_DELAY']
             self.start_delay_time = time.time()
             self.next_state = self.state_string_to_int_dict['GPRS_STATE_IP_STATUS']
@@ -530,16 +549,19 @@ class Gprs:
 
         # Error conditions
         elif self.match_response(b'+PDP: DEACT\r\n', GPRS_RESPONSE_SPONTANEOUS):
+            logging.info("Got PDP: DEACT %s %s", self.response_list, self.state_string_list[self.state])
             if (1 == len(self.response_list)
             and GPRS_RESPONSE_OK == self.response_list[0]
-            and self.state_string_to_int_dict['GPRS_STATE_CIICR'] == self.state):
+            and self.state_string_to_int_dict['GPRS_STATE_CIICR'] == self.previous_state): # we have advanced to the next state already
                 self.response_list = [GPRS_RESPONSE_BLANK, GPRS_RESPONSE_ERROR]
         elif self.match_response(b'ERROR\r\n', GPRS_RESPONSE_ERROR):
             pass
         elif self.match_response(b'CLOSED\r\n', GPRS_RESPONSE_SPONTANEOUS):
             self.connected = False
+            self.previous_state = self.state
             self.state = self.state_string_to_int_dict['GPRS_STATE_FOO']
         elif self.match_response(b'CONNECT FAIL\r\n', GPRS_RESPONSE_SPONTANEOUS):
+            self.previous_state = self.state
             self.state = self.state_string_to_int_dict['GPRS_STATE_FOO']
 
         # hard to identify things (need regex or some such)
@@ -551,6 +573,7 @@ class Gprs:
                 self.clear_to_end_of_line()
             else:
                 logging.error('Failed to parse line that should have been an IP address: %s', self.bytes)
+                self.previous_state = self.state
                 self.state = self.state_string_to_int_dict['GPRS_STATE_FOO']
 
         else:
@@ -570,12 +593,12 @@ class Gprs:
                 # we have satisfied the expected response for the command
                 logging.info('%s done in %d seconds. Next state %s. Radio is now idle.', self.command, self.loop_time-self.command_start_time, self.state_string_list[self.next_state])
                 self.radio_busy = False
+                self.previous_state = self.state
                 self.state = self.next_state
 
         if self.radio_busy:
             if self.state_string_to_int_dict['GPRS_STATE_FOO'] == self.state:
                 self.state_list[self.state].run()
-                pass
             else:
                 # wait for radio to finish current operation
                 pass
@@ -589,7 +612,8 @@ class Gprs:
 
             except xxx as e:
                 logging.info('xxx exception %s', e, exc_info=True, stack_info=True)
-
+            except Exception as e:
+                logging.error('Exception: %s', e)
             else:
                 pass
 
