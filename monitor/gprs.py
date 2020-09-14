@@ -228,7 +228,6 @@ class GprsState:
         if 0 == ret1:
             # make a copy of the response list in case we re-visit this state
             self.radio.send_command(self.command_string, self.packet, self.response_list.copy(), self.next_state)
-            self.packet = ()
             ret2 = self.METHODS[self.suffix](self)
             if 0 < self.delay:
                 logging.debug("Delay %d seconds before going into state %s", self.delay, self.radio.state_string_list[self.next_state])
@@ -549,7 +548,7 @@ class Gprs:
 
         # Error conditions
         elif self.match_response(b'+PDP: DEACT\r\n', GPRS_RESPONSE_SPONTANEOUS):
-            logging.info("Got PDP: DEACT %s %s", self.response_list, self.state_string_list[self.state])
+            logging.info("Got PDP: DEACT %s %s", self.response_list, self.state_string_list[self.previous_state])
             if (1 == len(self.response_list)
             and GPRS_RESPONSE_OK == self.response_list[0]
             and self.state_string_to_int_dict['GPRS_STATE_CIICR'] == self.previous_state): # we have advanced to the next state already
@@ -595,6 +594,7 @@ class Gprs:
                 self.radio_busy = False
                 self.previous_state = self.state
                 self.state = self.next_state
+                self.packet = ()
 
         if self.radio_busy:
             if self.state_string_to_int_dict['GPRS_STATE_FOO'] == self.state:
@@ -722,6 +722,8 @@ class Gprs:
     def publish(self, topic, message):
         logging.debug('Gprs.publish() to %s', topic)
         if self.radio_busy:
+            raise NotImplementedError
+        if not self.connected:
             raise NotImplementedError
         packet = self.build_message_packet(topic, message)
         self.send_command(b'AT+CIPSEND', packet, [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_SENDOK], self.state_string_to_int_dict['GPRS_STATE_PUBLISH'])

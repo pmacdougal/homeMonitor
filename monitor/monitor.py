@@ -73,7 +73,7 @@ class Monitor:
 
 class Barn(Monitor):
     def __init__(self):
-        logging.basicConfig(level=logging.INFO)
+        logging.basicConfig(level=logging.DEBUG)
         self.access = 'gprs'
 
     def configure(self, mqtt_monitor, metering_queue):
