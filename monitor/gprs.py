@@ -141,7 +141,7 @@ class GprsState:
         periodically, the radio needs to communicate with AdaFruit
         We publish the radio signal quality if nothing else is going on
         """
-        if (240 < self.radio.loop_time - self.radio.command_start_time):
+        if 240 < self.radio.loop_time - self.radio.command_start_time:
             return 0
         return 1
 
@@ -223,7 +223,8 @@ class GprsState:
          }
 
     def run(self):
-        logging.info('### %s %s %s', self.radio.state_string_list[self.radio.state], self.prefix, self.suffix)
+        if b'GPRS_STATE_PUBLISH' != self.radio.state_string_list[self.radio.state]:
+            logging.info('### %s %s %s', self.radio.state_string_list[self.radio.state], self.prefix, self.suffix)
         ret1 = self.METHODS[self.prefix](self)
         ret2 = 0
         if 0 == ret1:
@@ -368,7 +369,7 @@ class Gprs:
     # see if the string parameter is at the beginning of the recieved bytes from the radio
     def is_prefix(self, string, *, pop=False):
         if string == self.bytes[0:len(string)]:
-            if (pop):
+            if pop:
                 self.bytes = self.bytes[len(string):]
             return True
         else:
@@ -389,7 +390,7 @@ class Gprs:
                     self.bytes = self.bytes[pos+2:]
 
             # match with the expected response
-            if (GPRS_RESPONSE_SPONTANEOUS == response):
+            if GPRS_RESPONSE_SPONTANEOUS == response:
                 # don't match this with expected responses
                 return True
             else:
@@ -426,7 +427,7 @@ class Gprs:
     def process_bytes(self):
         # if there is no response from radio, just return
         numbytes = len(self.bytes)
-        if (0 == numbytes):
+        if 0 == numbytes:
             return False
 
         # handle responses that do not end with \r\n (tyically MQTT packets)
