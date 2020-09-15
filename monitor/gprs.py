@@ -28,6 +28,7 @@ GPRS_RESPONSE_SHUTOK = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
 GPRS_RESPONSE_SPONTANEOUS = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
 GPRS_RESPONSE_SQ = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
 GPRS_RESPONSE_TIME = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
+GPRS_RESPONSE_MQTT = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
 
 class xxx(Exception):
     pass
@@ -359,6 +360,8 @@ class Gprs:
             return 'GPRS_RESPONSE_SENDOK'
         elif GPRS_RESPONSE_CONNECTOK == token:
             return 'GPRS_RESPONSE_CONNECTOK'
+        elif GPRS_RESPONSE_MQTT == token:
+            return 'GPRS_RESPONSE_MQTT'
         else:
             raise NotImplementedError
 
@@ -450,6 +453,13 @@ class Gprs:
                         logging.error('CONNACK connection refused.  Status %s', self.bytes[3])
                         self.previous_state = self.state
                         self.state = self.state_string_to_int_dict['GPRS_STATE_FOO']
+                        
+        elif 0 < len(self.response_list) and GPRS_RESPONSE_MQTT == self.response_list[0]:
+            if (48 == self.bytes[0] # MQTT_CTRL_PUBLISH<<4
+            and 3+self.bytes[1] <= len(self.bytes)): # length matches
+                self.bytes = self.bytes[3+self.bytes[1]:]
+                self.response_list.pop(0)
+                return True
 
         if not b'\r\n' in self.bytes:
             logging.debug('partial line detected %d %s', numbytes, self.bytes)
@@ -463,9 +473,22 @@ class Gprs:
         elif self.is_prefix(b'AT+', pop=False):
             if self.match_response(self.command + b'\r\r\n', GPRS_RESPONSE_ECHO):
                 pass
+            elif self.match_response('AT+CIPSEND\r\n', GPRS_RESPONSE_ECHO):
+                # Sometimes, we get the mqtt packet after echo
+                if (0 == len(self.response_list)
+                and self.state_string_to_int_dict['GPRS_STATE_PUBLISH'] == self.previous_state): # we have advanced to the next state already
+                    self.response_list = [GPRS_RESPONSE_MQTT]
+                else:
+                    logging.error('AT+CIPSEND\\r\\n seen while response list was not empty (%s)', self.response_list)
+                    self.previous_state = self.state
+                    self.state = self.state_string_to_int_dict['GPRS_STATE_FOO']
+
             elif self.match_response(self.command + b'\r', GPRS_RESPONSE_ECHO, partial=True):
                 # self.remainder should be the remainder of the line (e.g. MQTT connect packet)
-                pass
+                if b'\n' == self.remainder:
+
+                else:
+                    pass
             else:
                 logging.error('got AT+ prefix but not %s\\r\\r\\n', self.command)
                 return False
