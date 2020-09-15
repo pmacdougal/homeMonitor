@@ -150,9 +150,10 @@ class GprsState:
         publish radio strength
         always returns 1, so that we do not do a radio.send_command
         """
-        self.radio.publish('s.sq', self.radio.signal)
-        self.radio.previous_state = self.radio.state
-        self.radio.state = self.radio.state_string_to_int_dict['GPRS_STATE_PUBLISH']
+        if self.radio.is_ready():
+            self.radio.publish('s.sq', self.radio.signal)
+            self.radio.previous_state = self.radio.state
+            self.radio.state = self.radio.next_state
         return 1
 
     def method_foo(self):
@@ -308,7 +309,7 @@ class Gprs:
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_CIFSR']]       = GprsState(self, b'AT+CIFSR',     [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_IPADDR], self.state_string_to_int_dict['GPRS_STATE_IP_STATUS'], delay=5)
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_CIPSTART']]    = GprsState(self, b'AT+CIPSTART="TCP","io.adafruit.com","1883"', [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK, GPRS_RESPONSE_BLANK, GPRS_RESPONSE_CONNECTOK], self.state_string_to_int_dict['GPRS_STATE_MQTTCONNECT'])
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_MQTTCONNECT']] = GprsState(self, b'AT+CIPSEND',   [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_SENDOK, GPRS_RESPONSE_CONNACK], self.state_string_to_int_dict['GPRS_STATE_PUBLISH'], prefix='build_connect_packet')
-        self.state_list[self.state_string_to_int_dict['GPRS_STATE_PUBLISH']]     = GprsState(self, b'AT+CSQ',       [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_SQ, GPRS_RESPONSE_BLANK, GPRS_RESPONSE_OK], self.state_string_to_int_dict['GPRS_STATE_PUBLISH'], prefix='keep_alive')
+        self.state_list[self.state_string_to_int_dict['GPRS_STATE_PUBLISH']]     = GprsState(self, b'AT+CSQ',       [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_SQ, GPRS_RESPONSE_BLANK, GPRS_RESPONSE_OK], self.state_string_to_int_dict['GPRS_STATE_KEEPALIVE'], prefix='keep_alive')
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_KEEPALIVE']]   = GprsState(self, b'',             [], self.state_string_to_int_dict['GPRS_STATE_FOO'], prefix='publish_sq')
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_FOO']]         = GprsState(self, b'',             [], self.state_string_to_int_dict['GPRS_STATE_FOO'], prefix='state_foo')
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_DELAY']]       = GprsState(self, b'',             [], self.state_string_to_int_dict['GPRS_STATE_FOO'], prefix='state_delay')
@@ -577,13 +578,16 @@ class Gprs:
                 self.response_list = [GPRS_RESPONSE_BLANK, GPRS_RESPONSE_ERROR]
         elif self.match_response(b'ERROR\r\n', GPRS_RESPONSE_ERROR):
             pass
+        elif self.match_response(b'SEND FAIL\r\n', GPRS_RESPONSE_SENDOK):
+            self.response_list.clear()
+            self.next_state = self.state_string_to_int_dict['GPRS_STATE_FOO']
         elif self.match_response(b'CLOSED\r\n', GPRS_RESPONSE_SPONTANEOUS):
             self.connected = False
-            self.previous_state = self.state
-            self.state = self.state_string_to_int_dict['GPRS_STATE_FOO']
+            self.response_list.clear()
+            self.next_state = self.state_string_to_int_dict['GPRS_STATE_FOO']
         elif self.match_response(b'CONNECT FAIL\r\n', GPRS_RESPONSE_SPONTANEOUS):
-            self.previous_state = self.state
-            self.state = self.state_string_to_int_dict['GPRS_STATE_FOO']
+            self.response_list.clear()
+            self.next_state = self.state_string_to_int_dict['GPRS_STATE_FOO']
 
         # hard to identify things (need regex or some such)
         elif 0 < len(self.response_list) and GPRS_RESPONSE_IPADDR == self.response_list[0]:
