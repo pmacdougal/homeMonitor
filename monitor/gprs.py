@@ -453,7 +453,7 @@ class Gprs:
                         logging.error('CONNACK connection refused.  Status %s', self.bytes[3])
                         self.previous_state = self.state
                         self.state = self.state_string_to_int_dict['GPRS_STATE_FOO']
-                        
+
         elif 0 < len(self.response_list) and GPRS_RESPONSE_MQTT == self.response_list[0]:
             if (48 == self.bytes[0] # MQTT_CTRL_PUBLISH<<4
             and 3+self.bytes[1] <= len(self.bytes)): # length matches
@@ -482,13 +482,9 @@ class Gprs:
                     logging.error('AT+CIPSEND\\r\\n seen while response list was not empty (%s)', self.response_list)
                     self.previous_state = self.state
                     self.state = self.state_string_to_int_dict['GPRS_STATE_FOO']
-
             elif self.match_response(self.command + b'\r', GPRS_RESPONSE_ECHO, partial=True):
                 # self.remainder should be the remainder of the line (e.g. MQTT connect packet)
-                if b'\n' == self.remainder:
-
-                else:
-                    pass
+                pass
             else:
                 logging.error('got AT+ prefix but not %s\\r\\r\\n', self.command)
                 return False
@@ -548,6 +544,8 @@ class Gprs:
             self.registered = False
         elif self.match_response(b'+CREG: 0,1\r\n', GPRS_RESPONSE_REG):
             self.registered = True
+        elif self.match_response(b'+CREG: 0,2\r\n', GPRS_RESPONSE_REG):
+            self.registered = False
         elif self.match_response(b'+CREG: 0,5\r\n', GPRS_RESPONSE_REG): # roaming
             self.registered = True
 
