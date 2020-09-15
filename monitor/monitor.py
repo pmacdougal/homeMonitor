@@ -43,8 +43,8 @@ class Monitor:
 
                     if len(metering_queue):
                         #if (isinstance(metering_queue[0], dict)
-                        #    and "topic" in metering_queue[0]
-                        #    and "message" in metering_queue[0]):
+                        #and "topic" in metering_queue[0]
+                        #and "message" in metering_queue[0]):
                         t = metering_queue[0].get("topic", "")
                         m = metering_queue[0].get("message", "")
                         f = metering_queue[0].get("filter", True)

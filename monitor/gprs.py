@@ -439,11 +439,11 @@ class Gprs:
                 # session present - 0 or 1
                 # payload - 0, 1, 2, 3, 4, 5
                 #if (b' ' == self.bytes[0]
-                #   and b'\x02' == self.bytes[1]
-                #   and (b'\x00' == self.bytes[2] or b'\x01' == self.bytes[2])):
+                #and b'\x02' == self.bytes[1]
+                #and (b'\x00' == self.bytes[2] or b'\x01' == self.bytes[2])):
                 if (32 == self.bytes[0]
-                   and 2 == self.bytes[1]
-                   and (0 == self.bytes[2] or 1 == self.bytes[2])):
+                and 2 == self.bytes[1]
+                and (0 == self.bytes[2] or 1 == self.bytes[2])):
                     if 0 == self.bytes[3]:
                         logging.info('Got CONNACK from MQTT broker.  Connected is now true.')
                         self.response_list.pop(0)

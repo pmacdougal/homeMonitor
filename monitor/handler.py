@@ -112,7 +112,7 @@ class Printer(Handler):
         super().handle_json(json_string)
         data = json.loads(json_string)
         # small current while idle is not interesting, so clamp
-        if (0.150 > data['ENERGY']['Current']):
+        if 0.150 > data['ENERGY']['Current']:
             data['ENERGY']['Current'] = 0.0
         self.publish('h.printercurrent', data['ENERGY']['Current'])
 
@@ -124,7 +124,7 @@ class Washer(Handler):
         super().handle_json(json_string)
         data = json.loads(json_string)
         # small current while idle is not interesting, so clamp
-        if (0.06 > data['ENERGY']['Current']):
+        if 0.06 > data['ENERGY']['Current']:
             data['ENERGY']['Current'] = 0.0
         self.publish('h.washercurrent', data['ENERGY']['Current'])
         self.publish('h.washervoltage', data['ENERGY']['Voltage'])
@@ -165,4 +165,4 @@ class LoftTemp(Handler):
     def handle_json(self, json_string):
         super().handle_json(json_string)
         data = json.loads(json_string)
-        self.publish('s.lt', data['T0'], filter=False)
+        self.publish('s.lt', data['T0'])
