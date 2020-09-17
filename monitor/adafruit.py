@@ -107,13 +107,13 @@ class Adafruit:
                         raise NotImplementedError
 
             except RequestError:
-                logging.error('Exception: Got a RequestError for %s', topic)
+                logging.error('Exception: Got a RequestError for %s', topic, exc_info=True)
             except ThrottlingError:
-                logging.error('Exception: Got a ThrottlingError for %s', topic)
+                logging.error('Exception: Got a ThrottlingError for %s', topic, exc_info=True)
             except AdafruitIOError:
-                logging.error('Exception: Got an AdafruitIOError for %s', topic)
+                logging.error('Exception: Got an AdafruitIOError for %s', topic, exc_info=True)
             except Exception as e:
-                logging.error('Exception: %s', e)
+                logging.error('Exception: %s', e, exc_info=True)
             else:
                 logging.info('Adafruit: Publish succeeded for %s %s at %s', topic, message, when)
 

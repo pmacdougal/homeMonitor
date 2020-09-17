@@ -661,7 +661,7 @@ class Gprs:
             except xxx as e:
                 logging.info('xxx exception %s', e, exc_info=True, stack_info=True)
             except Exception as e:
-                logging.error('Exception: %s', e)
+                logging.error('Exception: %s', e, exc_info=True)
             else:
                 pass
 
