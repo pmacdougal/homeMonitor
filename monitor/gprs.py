@@ -9,6 +9,8 @@ from monitor.private import username, password
 ToDo:
     implement a DELAY state
     test powering up the radio
+    convert b'' to string in most places
+    handle SEND_FAIL (because SQ was 0?)
 '''
 
 # responses
@@ -81,9 +83,7 @@ class GprsState:
             return 1
         elif False and 20 == self.loop_count:
             logging.warning("method_cr_loop() stuck in loop")
-            self.radio.previous_state = self.radio.state
-            self.radio.state = self.radio.state_string_to_int_dict['GPRS_STATE_FOO']
-            self.radio.next_state = self.radio.state
+            self.radio.goto_foo()
             return 1
         elif 1 < self.loop_count:
             logging.debug('method_cr_loop() count %d', self.loop_count)
@@ -103,9 +103,7 @@ class GprsState:
             return 1
         elif False and 20 == self.loop_count:
             logging.warning("method_reg_loop() stuck in loop")
-            self.radio.previous_state = self.radio.state
-            self.radio.state = self.radio.state_string_to_int_dict['GPRS_STATE_FOO']
-            self.radio.next_state = self.radio.state
+            self.radio.goto_foo()
             return 1
         elif 1 < self.loop_count:
             logging.debug('method_reg_loop() count %d', self.loop_count)
@@ -123,9 +121,7 @@ class GprsState:
             return 1
         elif False and 20 == self.loop_count:
             logging.warning("method_sq_loop() stuck in loop")
-            self.radio.previous_state = self.radio.state
-            self.radio.state = self.radio.state_string_to_int_dict['GPRS_STATE_FOO']
-            self.radio.next_state = self.radio.state
+            self.radio.goto_foo()
             return 1
         elif 1 < self.loop_count:
             logging.debug('method_sq_loop() count %d', self.loop_count)
@@ -258,6 +254,7 @@ class Gprs:
         self.radio_busy = False
         self.ser = None
         self.bytes = b''
+        self.radio_output = ''
         self.response_list = []
         self.command = ''
         self.call_ready = False
@@ -293,7 +290,6 @@ class Gprs:
         self.start_delay_time = 0
         self.delay_time = 0
 
-
         self.state_list = [None]*len(self.state_string_to_int_dict)
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_INITIAL']]     = GprsState(self, b'AT',           [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK], self.state_string_to_int_dict['GPRS_STATE_DISABLE_GPS'], prefix='power_up')
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_POWERING_UP']] = GprsState(self, b'',             [], self.state_string_to_int_dict['GPRS_STATE_POWERING_UP'], prefix='pu_delay')
@@ -323,9 +319,21 @@ class Gprs:
         RPi.GPIO.setup(7, RPi.GPIO.IN)
         RPi.GPIO.setup(31, RPi.GPIO.OUT)
 
+    def check_radio_output(self):
+        """
+        read bytes from serial port concatenating them into an internal string
+        more docstring stuff
+        """
+        if None != self.ser and 0 < self.ser.in_waiting:
+            self.ser.timeout = 1
+            newbytes = self.ser.read_until(terminator=b'\r\n')
+            self.radio_output += newbytes.decode('utf-8')
+            return len(newbytes)
+        return 0
+
     def check_input(self):
         """
-        read bytes from serial port concatenating them into an internal tuple of bytes
+        read bytes from serial port concatenating them into an internal byte array
         more docstring stuff
         """
         if None != self.ser and 0 < self.ser.in_waiting:
@@ -409,17 +417,12 @@ class Gprs:
                         return True
                     else:
                         logging.error('Gprs.match_response(): found %s line where %s was expected', str_response, self.stringify_response(self.response_list[0]))
-                        # What do we do now?
-                        self.previous_state = self.state
-                        self.state = self.state_string_to_int_dict['GPRS_STATE_FOO']
-                        self.next_state = self.state
+                        self.goto_foo()
 
                 else:
                     # got a blank line while not expecting any response
                     logging.error('Gprs.match_response(): found blank line where nothing was expected')
-                    self.previous_state = self.state
-                    self.state = self.state_string_to_int_dict['GPRS_STATE_FOO']
-                    self.next_state = self.state
+                    self.goto_foo()
 
         return False
 
@@ -460,9 +463,7 @@ class Gprs:
                         return True
                     else:
                         logging.error('CONNACK connection refused.  Status %s', self.bytes[3])
-                        self.previous_state = self.state
-                        self.state = self.state_string_to_int_dict['GPRS_STATE_FOO']
-                        self.next_state = self.state
+                        self.goto_foo()
 
         elif 0 < len(self.response_list) and GPRS_RESPONSE_MQTT == self.response_list[0]:
             if (48 == self.bytes[0] # MQTT_CTRL_PUBLISH<<4
@@ -491,9 +492,7 @@ class Gprs:
                     self.response_list = [GPRS_RESPONSE_MQTT]
                 else:
                     logging.error('AT+CIPSEND\\r\\n seen while response list was not empty (%s)', self.response_list)
-                    self.previous_state = self.state
-                    self.state = self.state_string_to_int_dict['GPRS_STATE_FOO']
-                    self.next_state = self.state
+                    self.goto_foo()
             elif self.match_response(self.command + b'\r', GPRS_RESPONSE_ECHO, partial=True):
                 # self.remainder should be the remainder of the line (e.g. MQTT connect packet)
                 pass
@@ -593,23 +592,14 @@ class Gprs:
                 self.response_list.clear()
                 self.next_state = self.state_string_to_int_dict['GPRS_STATE_IP_STATUS']
         elif self.match_response(b'ERROR\r\n', GPRS_RESPONSE_ERROR):
-            self.previous_state = self.state
-            self.state = self.state_string_to_int_dict['GPRS_STATE_FOO']
-            self.next_state = self.state
+            self.goto_foo()
         elif self.match_response(b'SEND FAIL\r\n', GPRS_RESPONSE_SENDOK):
-            self.previous_state = self.state
-            self.state = self.state_string_to_int_dict['GPRS_STATE_FOO']
-            self.next_state = self.state
+            self.goto_foo()
         elif self.match_response(b'CLOSED\r\n', GPRS_RESPONSE_SPONTANEOUS):
             self.connected = False
-            self.previous_state = self.state
-            self.state = self.state_string_to_int_dict['GPRS_STATE_FOO']
-            self.next_state = self.state
+            self.goto_foo()
         elif self.match_response(b'CONNECT FAIL\r\n', GPRS_RESPONSE_SPONTANEOUS):
-            self.previous_state = self.state
-            self.state = self.state_string_to_int_dict['GPRS_STATE_FOO']
-            self.next_state = self.state
-
+            self.goto_foo()
         # hard to identify things (need regex or some such)
         elif 0 < len(self.response_list) and GPRS_RESPONSE_IPADDR == self.response_list[0]:
             temp = self.bytes.decode(encoding='UTF-8').split('.') # xxx.xxx.xxx.xxx
@@ -619,9 +609,7 @@ class Gprs:
                 self.clear_to_end_of_line()
             else:
                 logging.error('Failed to parse line that should have been an IP address: %s', self.bytes)
-                self.previous_state = self.state
-                self.state = self.state_string_to_int_dict['GPRS_STATE_FOO']
-                self.next_state = self.state
+                self.goto_foo()
 
         else:
             logging.error('Gprs.process_bytes(): write code to handle %s %d', self.bytes, numbytes)
@@ -631,9 +619,94 @@ class Gprs:
 
         return True
 
+    def goto_foo(self):
+        if 0 == len(self.response_list):
+            self.next_state = self.state_string_to_int_dict['GPRS_STATE_FOO']
+        else:
+            self.previous_state = self.state
+            self.state = self.state_string_to_int_dict['GPRS_STATE_FOO']
+            self.next_state = self.state
+
+    def handle_radio_output(self):
+        stringlength = len(self.radio_output)
+        # if we have no chars from the radio, attempt to read some
+        if 0 == stringlength:
+            new_count = self.check_radio_output()
+            if 0 == new_count:
+                return False
+            stringlength = len(self.radio_output)
+
+        if not b'\r\n' in self.radio_output:
+            # We have bytes, but not a CRLF
+            # This happens when we are waiting for a MQTT response
+            # It also happens when we timeout on reading from radio (partial response)
+            if 0 < len(self.response_list) and GPRS_RESPONSE_CONNACK == self.response_list[0]:
+                if 4 <= stringlength:
+                    # MQTT CONNACK packet
+                    # opcode 32
+                    # length - 2
+                    # session present - 0 or 1
+                    # payload - 0, 1, 2, 3, 4, 5
+                    if (32 == self.radio_output[0]
+                    and 2 == self.radio_output[1]
+                    and (0 == self.radio_output[2] or 1 == self.radio_output[2])):
+                        if 0 == self.radio_output[3]:
+                            logging.info('Got CONNACK from MQTT broker.  Connected is now true.')
+                            self.connected = True
+                        else:
+                            logging.error('CONNACK connection refused.  Status %s', self.radio_output[3])
+                            self.connected = False
+                            # Try to connect again
+                            self.next_state = self.state_string_to_int_dict['GPRS_STATE_MQTTCONNECT']
+                        self.radio_output = self.radio_output[4:]
+                        self.response_list.pop(0)
+                        return True
+
+                    else:
+                        logging.error('Gprs.handle_radio_output() was expecting a CONNACK packet')
+                        self.goto_foo()
+                else:
+                    # try to read more bytes
+                    self.check_radio_output()
+                    return False
+
+            elif 0 < len(self.response_list) and GPRS_RESPONSE_MQTT == self.response_list[0]:
+                if 4 <= stringlength:
+                    # MQTT PUBLISH packet (we just built this, the radio echoes it back)
+                    # opcode 48
+                    # length - ??
+                    if (48 == self.radio_output[0] # MQTT_CTRL_PUBLISH<<4
+                    and 3+self.radio_output[1] <= len(self.radio_output)): # length matches
+                        self.radio_output = self.radio_output[3+self.radio_output[1]:]
+                        self.response_list.pop(0)
+                        return True
+                    else:
+                        logging.error('Gprs.handle_radio_output() was expecting a CONNACK packet')
+                        self.goto_foo()
+                else:
+                    # try to read more bytes
+                    self.check_radio_output()
+                    return False
+            else:
+                self.check_radio_output()
+                return False
+        else:
+            # self.radio_output has a CRLF (most likely at the end of the string)
+            logging.debug('    Gprs.handle_radio_output() %s - %s %s', self.lines_of_response, self.radio_output, self.response_list)
+            self.lines_of_response += 1
+            
+            if self.radio_output in self.METHODS:
+                return self.METHODS[self.radio_output](self)
+            else:
+                # do regular expression stuff here
+                pass
+
     def loop(self):
         #logging.debug('loop')
         self.loop_time = time.time()
+        while self.handle_radio_output():
+            pass
+
         newbytes = self.check_input()
         while self.process_bytes(newbytes): # this needs a timeout or iteration limit
             if 0 == len(self.response_list):
@@ -745,10 +818,12 @@ class Gprs:
             packet += b' '
         packet[1] = len(packet)-2 # fill in the length
         packet.append(26) # not really part of the packet
-
         return packet
 
     def send_command(self, command, bytes, response_list, next_state):
+        '''
+        Send a command to the radio (including extra bytes if needed)
+        '''
         logging.debug('Gprs.send_command(): Sending command %s', command)
         self.command = command
         self.response_list = response_list
@@ -767,7 +842,59 @@ class Gprs:
         #logging.debug('is_ready() %s %s', self.connected, self.radio_busy)
         return self.connected and not self.radio_busy
 
+    def response_matches(self):
+        '''
+        '''
+        pass
+
+    def method_match_blank_line(self):
+        '''
+        '''
+        pass
+        '''
+        if (GPRS_RESPONSE_BLANK == self.response_list[0]):
+            self.response_matches()
+        '''
+
+    def method_match_OK_line(self):
+        '''
+        '''
+        pass
+        '''
+        if (GPRS_RESPONSE_OK == self.response_list[0]):
+            self.response_matches()
+        '''
+
+    METHODS = {
+            '\r\n': method_match_blank_line,
+            'OK\r\n': method_match_OK_line
+    }
+    """
+    'ERROR\r\n',
+    'SHUT OK\r\n',
+    'SEND OK\r\n',
+    'AT\r\r\n',
+    'AT+CIPSEND\r\n',
+    'STATE: IP INITIAL\r\n',
+    'STATE: IP START\r\n',
+    'STATE: IP GPRSACT\r\n',
+    'STATE: IP STATUS\r\n',
+    'STATE: TCP CLOSED\r\n',
+    'STATE: IP CONFIG\r\n',
+    'STATE: TCP CONNECTING\r\n',
+    'STATE: TCP CLOSING\r\n',
+    'STATE: PDP DEACT\r\n',
+    '+PDP: DEACT\r\n',
+    'SEND FAIL\r\n',
+    'CLOSED\r\n',
+    'CONNECT FAIL\r\n'
+    """
+
     def publish(self, topic, message):
+        '''
+        publish a message to an AdaFruit.IO topic by sending a packet out via the radio
+        Note that this just starts the communication
+        '''
         logging.debug('Gprs.publish() to %s', topic)
         if self.radio_busy:
             raise NotImplementedError
