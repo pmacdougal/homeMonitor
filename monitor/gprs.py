@@ -332,6 +332,8 @@ class Gprs:
             self.ser.timeout = 1
             newbytes = self.ser.read_until(terminator=b'\r\n')
             self.bytes += newbytes
+            return len(newbytes)
+        return 0
 
     def stringify_response(self, token):
         """
@@ -430,7 +432,7 @@ class Gprs:
         self.bytes = self.bytes[pos+2:]
 
     # match bytes from the radio with expected responses
-    def process_bytes(self):
+    def process_bytes(self, new_byte_count):
         # if there is no response from radio, just return
         numbytes = len(self.bytes)
         if 0 == numbytes:
@@ -470,7 +472,8 @@ class Gprs:
                 return True
 
         if not b'\r\n' in self.bytes:
-            logging.debug('partial line detected %d %s', numbytes, self.bytes)
+            if new_byte_count:
+                logging.debug('partial line detected %d %s', numbytes, self.bytes)
             return False
 
         # try to match the response (we could refactor relative to self.command)
@@ -631,8 +634,8 @@ class Gprs:
     def loop(self):
         #logging.debug('loop')
         self.loop_time = time.time()
-        self.check_input()
-        while self.process_bytes(): # this needs a timeout or iteration limit
+        newbytes = self.check_input()
+        while self.process_bytes(newbytes): # this needs a timeout or iteration limit
             if 0 == len(self.response_list):
                 # we have satisfied the expected response for the command
                 logging.info('%s done in %d seconds. Next state %s. Radio is now idle.', self.command, self.loop_time-self.command_start_time, self.state_string_list[self.next_state])
