@@ -166,3 +166,11 @@ class LoftTemp(Handler):
         super().handle_json(json_string)
         data = json.loads(json_string)
         self.publish('s.lt', data['T0'])
+
+class Status(Handler):
+    NAME = "Status"
+    
+    def handle_json(self, message): # not a json string
+        super().handle_json(message)
+        self.publish('h.wce', str(message, "utf-8"))
+

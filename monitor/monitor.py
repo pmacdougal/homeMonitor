@@ -4,7 +4,7 @@ import logging
 import time
 import sys
 from monitor.mqtt import MqttMonitor
-from monitor.handler import Garage, Laser, SoilProbe, Waterer, Printer, Washer, CatFeeder, Ups, PumpHouse, LoftTemp
+from monitor.handler import Garage, Laser, SoilProbe, Waterer, Printer, Washer, CatFeeder, Ups, PumpHouse, LoftTemp, Status
 from monitor.adafruit import Adafruit
 from monitor.private import username, password
 # private.py is not part of the checked in code.  You will need to create it.
@@ -95,8 +95,8 @@ class Home(Monitor):
         mqtt_monitor.topic(Washer('tele/sonoffE/SENSOR', metering_queue, 240, "h.mph"))
         mqtt_monitor.topic(Laser("tele/sonoffP/SENSOR", metering_queue, 240, "h.mph"))
         mqtt_monitor.topic(Ups("ups", metering_queue, 0, "h.mph"))
+        mqtt_monitor.topic(Status("tele/0dd6ce/wce", metering_queue, 0, "h.mph"))
         # tele/920e8c/SENSOR (esp_now_slave) {"S0":332,"S1":0,"S2":0}
-        # tele/0dd6ce/T0 (esp_status)
         # tele/1dc700/SENSOR {"Sketch":"tsunamiLight v1.0","SQ":-78,"minSQ":-90,"maxSQ":-71}
         # tele/GosundW/STATE (machine room LED lights) {"Time":"2020-08-30T10:16:28","Uptime":"22T12:28:56","UptimeSec":1945736,"Heap":31,"SleepMode":"Dynamic","Sleep":50,"LoadAvg":19,"MqttCount":7,"POWER":"OFF","Wifi":{"AP":1,"SSId":"Cisco52305","BSSId":"68:7F:74:49:E3:7E","Channel":6,"RSSI":24,"Signal":-88,"LinkCount":3,"Downtime":"0T00:00:18"}}
         # tele/GosundX/STATE (machine room power strip)
