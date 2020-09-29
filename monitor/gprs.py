@@ -764,7 +764,8 @@ class Gprs:
 
         if True:
             while self.handle_radio_output(): # this needs a timeout or iteration limit
-                if 0 == len(self.response_list):
+                if (self.radio_busy
+                and 0 == len(self.response_list)):
                     # we have satisfied the expected response for the command
                     logging.info('%s done in %d seconds. Next state %s. Radio is now idle.', self.command, self.loop_time-self.command_start_time, self.state_string_list[self.next_state])
                     self.radio_busy = False
@@ -1027,10 +1028,7 @@ class Gprs:
             self.response_list = [GPRS_RESPONSE_SPONTANEOUS, GPRS_RESPONSE_BLANK, GPRS_RESPONSE_ERROR]
             self.response_matches()
             return True
-        elif (1 == len(self.response_list)
-        and GPRS_RESPONSE_SENDOK == self.response_list[0]
-        and self.state_string_to_int_dict['GPRS_STATE_KEEPALIVE'] == self.previous_state): # we have advanced to the next state already
-            # I don't think there is anything else coming from the radio on the serial port
+        else:
             self.response_list = [GPRS_RESPONSE_SPONTANEOUS]
             self.next_state = self.state_string_to_int_dict['GPRS_STATE_IP_STATUS']
             self.response_matches()
