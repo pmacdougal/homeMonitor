@@ -4,6 +4,10 @@ import datetime
 from Adafruit_IO import Client, MQTTClient, RequestError, ThrottlingError, AdafruitIOError, Data
 from .gprs import Gprs
 
+'''
+ToDo:
+    figure out how to tell that the GPRS radio got SEND OK on publish
+'''
 class Adafruit:
     def __init__(self, username, password, access):
         logging.info('Adafruit: Connecting to io.adafruit.com ...')
@@ -95,6 +99,7 @@ class Adafruit:
                         if self.gprs.is_ready():
                             logging.debug('Adafruit: publish %s to %s', message, topic)
                             self.gprs.publish(topic, message)
+                            # getting here does not mean that the data got to AdaFruit
                         else:
                             return 1 # unsuccessful processing of this message
                     else:
@@ -102,13 +107,13 @@ class Adafruit:
                         raise NotImplementedError
 
             except RequestError:
-                logging.error('Exception: Got a RequestError for %s', topic)
+                logging.error('Exception: Got a RequestError for %s', topic, exc_info=True)
             except ThrottlingError:
-                logging.error('Exception: Got a ThrottlingError for %s', topic)
+                logging.error('Exception: Got a ThrottlingError for %s', topic, exc_info=True)
             except AdafruitIOError:
-                logging.error('Exception: Got an AdafruitIOError for %s', topic)
+                logging.error('Exception: Got an AdafruitIOError for %s', topic, exc_info=True)
             except Exception as e:
-                logging.error('Exception: %s', e)
+                logging.error('Exception: %s', e, exc_info=True)
             else:
                 logging.info('Adafruit: Publish succeeded for %s %s at %s', topic, message, when)
 
