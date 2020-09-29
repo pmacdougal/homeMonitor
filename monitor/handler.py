@@ -15,6 +15,10 @@ class Handler:
         self.message_count = 0
         self.messages_at_last_evaluate = 0
         self.time_of_last_evaluate = time.time()
+        self.list_of_keys = []
+
+    def setup(self, topic, key, *, clamp=0):
+        self.list_of_keys.append({'key': key, 'topic': topic, 'clamp': clamp})
 
     def publish(self, topic, message, *, filter=True):
         logging.debug("Handler: %s publish %s to topic %s", self.NAME, message, topic)
@@ -60,117 +64,32 @@ class Handler:
             else:
                 pass # normal range
 
-
-class Garage(Handler):
-    NAME = "Garage"
-
-    def handle_json(self, json_string):
-        super().handle_json(json_string)
-        data = json.loads(json_string)
-        #print(dir())
-        #print(self.__dict__)
-        self.publish('g.sq',  data['SQ'])
-        self.publish('g.door', data['doorCount'])
-        self.publish('g.t0',  data['T0'])
-        self.publish('g.t1',  data['T1'])
-
-
-class Laser(Handler):
-    NAME = "Laser"
+class Generic(Handler):
+    NAME = "Generic"
 
     def handle_json(self, json_string):
         super().handle_json(json_string)
         data = json.loads(json_string)
-        self.publish('h.lasercurrent', data['ENERGY']['Current'])
+        for k in self.list_of_keys:
+            self.publish(k['topic'], data[k['key']])
 
 
-class SoilProbe(Handler):
-    NAME = "Soil Probe"
-    
+class GenericEnergy(Handler):
+    NAME = "Generic"
+
     def handle_json(self, json_string):
         super().handle_json(json_string)
         data = json.loads(json_string)
-        self.publish('h.sp', data['S0'])
-        self.publish('h.sb', data['S1'])
+        for k in self.list_of_keys:
+            if k['clamp'] > data['ENERGY'][k['key']]:
+                data['ENERGY'][k['key']] = 0.0
+            self.publish(k['topic'], data['ENERGY'][k['key']])
 
+class GenericString(Handler):
+    NAME = "Generic"
 
-class Waterer(Handler):
-    NAME = "Washer"
-    
-    def handle_json(self, json_string):
-        super().handle_json(json_string)
-        data = json.loads(json_string)
-        self.publish('h.r', data['RTCount'])
-        self.publish('h.v', data['valveCount'])
-        self.publish('h.vr', data['VBATLOAD'])
-
-
-class Printer(Handler):
-    NAME = "Printer"
-    
-    def handle_json(self, json_string):
-        super().handle_json(json_string)
-        data = json.loads(json_string)
-        # small current while idle is not interesting, so clamp
-        if 0.150 > data['ENERGY']['Current']:
-            data['ENERGY']['Current'] = 0.0
-        self.publish('h.printercurrent', data['ENERGY']['Current'])
-
-
-class Washer(Handler):
-    NAME = "Washer"
-    
-    def handle_json(self, json_string):
-        super().handle_json(json_string)
-        data = json.loads(json_string)
-        # small current while idle is not interesting, so clamp
-        if 0.06 > data['ENERGY']['Current']:
-            data['ENERGY']['Current'] = 0.0
-        self.publish('h.washercurrent', data['ENERGY']['Current'])
-        self.publish('h.washervoltage', data['ENERGY']['Voltage'])
-
-
-class CatFeeder(Handler):
-    NAME = "CatFeeder"
-    
-    def handle_json(self, json_string):
-        super().handle_json(json_string)
-        data = json.loads(json_string)
-        self.publish('h.cf', data['CFCount'])
-
-
-class Ups(Handler):
-    NAME = "Ups"
-    
-    def handle_json(self, message): # not a json string
+    def handle_json(self, message):
         super().handle_json(message)
-        self.publish('h.ups', str(message, "utf-8"))
-
-
-class PumpHouse(Handler):
-    NAME = "PumpHouse"
-    
-    def handle_json(self, json_string):
-        super().handle_json(json_string)
-        data = json.loads(json_string)
-        self.publish('s.it', data['T0'])
-        self.publish('s.ot', data['T1'])
-        self.publish('s.ht', data['HT'])
-        self.publish('s.rt', data['RTCount'])
-
-
-class LoftTemp(Handler):
-    NAME = "LoftTemp"
-    
-    def handle_json(self, json_string):
-        super().handle_json(json_string)
-        data = json.loads(json_string)
-        self.publish('s.lt', data['T0'])
-
-class Status(Handler):
-    NAME = "Status"
-    
-    def handle_json(self, message): # not a json string
-        super().handle_json(message)
-        self.publish('h.wce', str(message, "utf-8"))
+        for k in self.list_of_keys:
+            self.publish(k['topic'], str(message, "utf-8"))
 

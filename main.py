@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 from socket import gethostname
-from .monitor import Home, Barn
+from monitor.monitor import Home, Barn
 
 def main():
-    if False:
+    if True:
         home = Home()
         hostname = gethostname()
         home.run(f"start Home from {hostname}", "h.mqtt", "192.168.2.30")

@@ -4,7 +4,7 @@ import logging
 import time
 import sys
 from .mqtt import MqttMonitor
-from .handler import Garage, Laser, SoilProbe, Waterer, Printer, Washer, CatFeeder, Ups, PumpHouse, LoftTemp, Status
+from .handler import Generic, GenericEnergy, GenericString
 from .adafruit import Adafruit
 from .private import username, password
 # private.py is not part of the checked in code.  You will need to create it.
@@ -73,31 +73,93 @@ class Monitor:
 
 
 class Barn(Monitor):
+    '''
+    Object to monitor sensors at the barn
+    '''
     def __init__(self):
         logging.basicConfig(level=logging.DEBUG)
         logging.info('Starting Barn Monitor')
         self.access = 'gprs'
 
-    def configure(self, mqtt_monitor, metering_queue):
-        mqtt_monitor.topic(PumpHouse("tele/0dd92a/SENSOR", metering_queue, 240, "s.mph"))
-        mqtt_monitor.topic(LoftTemp("tele/0dd096/SENSOR", metering_queue, 240, "s.mph"))
+    def configure(self, mqtt_monitor, metering_queue):        
+        '''
+        configure each of the local MQTT topics being monitored and the AdFruit Topics being published
+        '''
+        handler = Generic('tele/0dd92a/SENSOR', metering_queue, 240, 's.mph')
+        handler.NAME = 'PumpHouse'
+        handler.setup('s.it', 'T0')
+        handler.setup('s.ot', 'T1')
+        handler.setup('s.ht', 'HT')
+        handler.setup('s.rt', 'RTCount')
+        mqtt_monitor.topic(handler)
+
+        handler = Generic('tele/0dd096/SENSOR', metering_queue, 240, 's.mph')
+        handler.NAME = 'Loft'
+        handler.setup('s.lt', 'T0')
+        mqtt_monitor.topic(handler)
 
 
 class Home(Monitor):
+    '''
+    Object to monitor sensors at home
+    '''
     def __init__(self):
         logging.basicConfig(level=logging.INFO)
         self.access = 'rest'
 
     def configure(self, mqtt_monitor, metering_queue):
-        mqtt_monitor.topic(Garage("tele/99e934/SENSOR", metering_queue, 240, "h.mph"))
-        mqtt_monitor.topic(SoilProbe('tele/3154ff/SENSOR', metering_queue, 1, "h.mph"))
-        mqtt_monitor.topic(Waterer('tele/99e813/SENSOR', metering_queue, 240, "h.mph"))
-        mqtt_monitor.topic(CatFeeder('tele/9215de/SENSOR', metering_queue, 240, "h.mph"))
-        mqtt_monitor.topic(Printer('tele/sonoffD/SENSOR', metering_queue, 240, "h.mph"))
-        mqtt_monitor.topic(Washer('tele/sonoffE/SENSOR', metering_queue, 240, "h.mph"))
-        mqtt_monitor.topic(Laser("tele/sonoffP/SENSOR", metering_queue, 240, "h.mph"))
-        mqtt_monitor.topic(Ups("ups", metering_queue, 0, "h.mph"))
-        mqtt_monitor.topic(Status("tele/0dd6ce/wce", metering_queue, 0, "h.mph"))
+        '''
+        configure each of the local MQTT topics being monitored and the AdFruit Topics being published
+        '''
+        handler = Generic('tele/99e934/SENSOR', metering_queue, 240, 'h.mph')
+        handler.NAME = 'Garage'
+        handler.setup('g.sq',  'SQ')
+        handler.setup('g.door', 'doorCount')
+        handler.setup('g.t0',  'T0')
+        handler.setup('g.t1',  'T1')
+        mqtt_monitor.topic(handler)
+
+        handler = Generic('tele/3154ff/SENSOR', metering_queue, 1, 'h.mph')
+        handler.NAME = 'SoilProbe'
+        handler.setup('h.sp',  'S0')
+        handler.setup('h.sb',  'S1')
+        mqtt_monitor.topic(handler)
+
+        handler = Generic('tele/99e813/SENSOR', metering_queue, 240, 'h.mph')
+        handler.NAME = 'Waterer'
+        handler.setup('h.r', 'RTCount')
+        handler.setup('h.v', 'valveCount')
+        handler.setup('h.vr', 'VBATLOAD')
+        mqtt_monitor.topic(handler)
+
+        handler = Generic('tele/9215de/SENSOR', metering_queue, 240, 'h.mph')
+        handler.NAME = 'CatFeeder'
+        handler.setup('h.cf', 'CFCount')
+
+        handler = GenericEnergy('tele/sonoffP/SENSOR', metering_queue, 240, 'h.mph')
+        handler.NAME = 'Laser'
+        handler.setup('h.lasercurrent', 'Current', )
+        mqtt_monitor.topic(handler)
+
+        handler = GenericEnergy('tele/sonoffD/SENSOR', metering_queue, 240, 'h.mph')
+        handler.NAME = 'Printer'
+        handler.setup('h.printercurrent', 'Current', clamp=0.150)
+        mqtt_monitor.topic(handler)
+
+        handler = GenericEnergy('tele/sonoffE/SENSOR', metering_queue, 240, 'h.mph')
+        handler.NAME = 'Washer'
+        handler.setup('h.washercurrent', 'Current', clamp=0.06)
+        handler.setup('h.washervoltage', 'Voltage')
+        mqtt_monitor.topic(handler)
+
+        handler = GenericString('ups', metering_queue, 0, 'h.mph')
+        handler.NAME = 'Ups'
+        handler.setup('h.ups', 'unused')
+
+        handler = GenericString('tele/0dd6ce/wce', metering_queue, 0, 'h.mph')
+        handler.NAME = 'Status'
+        handler.setup('h.wce', 'unused')
+
         # tele/920e8c/SENSOR (esp_now_slave) {"S0":332,"S1":0,"S2":0}
         # tele/1dc700/SENSOR {"Sketch":"tsunamiLight v1.0","SQ":-78,"minSQ":-90,"maxSQ":-71}
         # tele/GosundW/STATE (machine room LED lights) {"Time":"2020-08-30T10:16:28","Uptime":"22T12:28:56","UptimeSec":1945736,"Heap":31,"SleepMode":"Dynamic","Sleep":50,"LoadAvg":19,"MqttCount":7,"POWER":"OFF","Wifi":{"AP":1,"SSId":"Cisco52305","BSSId":"68:7F:74:49:E3:7E","Channel":6,"RSSI":24,"Signal":-88,"LinkCount":3,"Downtime":"0T00:00:18"}}
