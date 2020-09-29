@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from socket import gethostname
-from monitor.monitor import Home, Barn
+from .monitor import Home, Barn
 
 def main():
     if False:
