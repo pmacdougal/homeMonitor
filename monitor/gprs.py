@@ -3,7 +3,7 @@ import serial
 import time
 import RPi.GPIO
 from socket import gethostname
-from monitor.private import username, password
+from .private import username, password
 
 '''
 ToDo:
