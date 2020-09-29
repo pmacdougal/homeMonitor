@@ -1026,14 +1026,11 @@ class Gprs:
         and GPRS_RESPONSE_OK == self.response_list[0]
         and self.state_string_to_int_dict['GPRS_STATE_CIICR'] == self.previous_state): # we have advanced to the next state already
             self.response_list = [GPRS_RESPONSE_SPONTANEOUS, GPRS_RESPONSE_BLANK, GPRS_RESPONSE_ERROR]
-            self.response_matches()
-            return True
         else:
             self.response_list = [GPRS_RESPONSE_SPONTANEOUS]
             self.next_state = self.state_string_to_int_dict['GPRS_STATE_IP_STATUS']
-            self.response_matches()
-            return True
-        return False
+        self.response_matches()
+        return True
 
     def method_match_goto_foo(self, token):
         '''
