@@ -8,7 +8,8 @@ from .handler import Garage, Laser, SoilProbe, Waterer, Printer, Washer, CatFeed
 from .adafruit import Adafruit
 from .private import username, password
 # private.py is not part of the checked in code.  You will need to create it.
-# It is a one line file with your Adafruit IO access key in it:
+# It is a two line file with your Adafruit IO username and access key in it:
+#     username = 'xxxxxxxx'
 #     password = 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
 
 class Monitor:
