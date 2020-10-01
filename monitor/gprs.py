@@ -29,6 +29,7 @@ GPRS_RESPONSE_SPONTANEOUS = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
 GPRS_RESPONSE_SQ = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
 GPRS_RESPONSE_TIME = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
 GPRS_RESPONSE_MQTT = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
+GPRS_RESPONSE_FLUSH = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
 
 class xxx(Exception):
     pass
@@ -272,6 +273,7 @@ class Gprs:
             'GPRS_STATE_CSTT',
             'GPRS_STATE_DELAY',
             'GPRS_STATE_DISABLE_GPS',
+            'GPRS_STATE_FLUSH',
             'GPRS_STATE_FOO',
             'GPRS_STATE_INITIAL',
             'GPRS_STATE_IP_STATUS',
@@ -315,7 +317,8 @@ class Gprs:
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_FOO']]         = GprsState(self, b'',             [], self.state_string_to_int_dict['GPRS_STATE_FOO'], prefix='state_foo')
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_DELAY']]       = GprsState(self, b'',             [], self.state_string_to_int_dict['GPRS_STATE_FOO'], prefix='state_delay')
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_UNDEFINED']]   = GprsState(self, b'',             [], self.state_string_to_int_dict['GPRS_STATE_FOO'])
-        #self.state_list[self.state_string_to_int_dict[GPRS_STATE_xxx]]        = GprsState(self, b'AT+xxx', [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK], GPRS_STATE_xxx)
+        self.state_list[self.state_string_to_int_dict['GPRS_STATE_FLUSH']]       = GprsState(self, b'AT',           [GPRS_RESPONSE_FLUSH, GPRS_RESPONSE_OK], self.state_string_to_int_dict['GPRS_STATE_IP_STATUS'])
+        #self.state_list[self.state_string_to_int_dict[GPRS_STATE_xxx]]        = GprsState(self, b'AT+xxx', [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK], self.state_string_to_int_dict['GPRS_STATE_IP_xxx'])
         #set GPIO numbering mode for the program
         RPi.GPIO.setmode(RPi.GPIO.BOARD)
         RPi.GPIO.setwarnings(False)
@@ -715,7 +718,11 @@ class Gprs:
                 return method['method'](self, method['arg'])
             else:
                 # do regex stuff here
-                if (b'AT+CIPSEND\r' == self.radio_output[0:11]
+                if (0 < len(self.response_list)
+                and GPRS_RESPONSE_FLUSH == self.response_list[0]):
+                    self.response_matches()
+                    return True
+                elif (b'AT+CIPSEND\r' == self.radio_output[0:11]
                 and 0 < len(self.response_list)
                 and GPRS_RESPONSE_ECHO == self.response_list[0]):
                     # remainder of the line is the MQTT packet we sent.  No need to parse it
@@ -1042,8 +1049,9 @@ class Gprs:
         CME ERROR
         '''
         logging.info("Got CME ERROR %s %s", self.response_list, self.state_string_list[self.previous_state])
+        # there may be an MQTT packet echoed from the radio here.  We need to flush that
         self.response_list = [GPRS_RESPONSE_SPONTANEOUS]
-        self.next_state = self.state_string_to_int_dict['GPRS_STATE_IP_STATUS']
+        self.next_state = self.state_string_to_int_dict['GPRS_STATE_FLUSH']
         self.response_matches()
         return True
 
