@@ -1140,7 +1140,7 @@ class Gprs:
         b'STATE: PDP DEACT\r\n': {'method': method_match_ipstatus, 'arg': 'GPRS_STATE_IPSHUT'},
         b'+PDP: DEACT\r\n': {'method': method_match_pdp_deact, 'arg': 0},
         b'+CME ERROR: 3\r\n': {'method': method_match_cme_error, 'arg': 0},
-        b'ERROR\r\n': {'method': method_match_goto_foo, 'arg': GPRS_RESPONSE_OK},
+        b'ERROR\r\n': {'method': method_match_goto_foo, 'arg': GPRS_RESPONSE_ERROR},
         b'SEND FAIL\r\n': {'method': method_match_goto_foo, 'arg': GPRS_RESPONSE_SENDOK},
         b'CONNECT FAIL\r\n': {'method': method_match_goto_foo, 'arg': GPRS_RESPONSE_CONNECTOK},
         b'CLOSED\r\n': {'method': method_match_closed, 'arg': 0},
