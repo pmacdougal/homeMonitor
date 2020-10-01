@@ -30,7 +30,7 @@ class Handler:
     def dump_info(self):
         logging.info("%s is handling %s", self.NAME, self.topic)
 
-    def handle_json(self, json_string):        
+    def handle_json(self, json_string):
         logging.debug("%s: got message %s", self.NAME, json_string)
         self.message_count += 1
 

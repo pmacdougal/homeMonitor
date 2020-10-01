@@ -582,6 +582,11 @@ class Gprs:
             logging.debug('Signal quality is %d', self.signal)
 
         # Error conditions
+        elif self.match_response(b'+CME ERROR: 3\r\n', GPRS_RESPONSE_SPONTANEOUS):
+            logging.info("Got CME ERROR %s %s", self.response_list, self.state_string_list[self.previous_state])
+            # I don't think there is anything else coming from the radio on the serial port
+                self.response_list.clear()
+                self.next_state = self.state_string_to_int_dict['GPRS_STATE_IP_STATUS']
         elif self.match_response(b'+PDP: DEACT\r\n', GPRS_RESPONSE_SPONTANEOUS):
             logging.info("Got PDP: DEACT %s %s", self.response_list, self.state_string_list[self.previous_state])
             if (1 == len(self.response_list)
@@ -1032,6 +1037,16 @@ class Gprs:
         self.response_matches()
         return True
 
+    def method_match_cme_error(self, arg):
+        '''
+        CME ERROR
+        '''
+        logging.info("Got CME ERROR %s %s", self.response_list, self.state_string_list[self.previous_state])
+        self.response_list = [GPRS_RESPONSE_SPONTANEOUS]
+        self.next_state = self.state_string_to_int_dict['GPRS_STATE_IP_STATUS']
+        self.response_matches()
+        return True
+
     def method_match_goto_foo(self, token):
         '''
         handle jumping to the error state
@@ -1116,6 +1131,7 @@ class Gprs:
         b'STATE: TCP CLOSING\r\n': {'method': method_match_ipconfig, 'arg': 3},
         b'STATE: PDP DEACT\r\n': {'method': method_match_ipstatus, 'arg': 'GPRS_STATE_IPSHUT'},
         b'+PDP: DEACT\r\n': {'method': method_match_pdp_deact, 'arg': 0},
+        b'+CME ERROR: 3\r\n': {'method': method_match_cme_error, 'arg': 0},
         b'ERROR\r\n': {'method': method_match_goto_foo, 'arg': GPRS_RESPONSE_OK},
         b'SEND FAIL\r\n': {'method': method_match_goto_foo, 'arg': GPRS_RESPONSE_SENDOK},
         b'CONNECT FAIL\r\n': {'method': method_match_goto_foo, 'arg': GPRS_RESPONSE_CONNECTOK},
