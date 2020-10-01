@@ -1105,6 +1105,18 @@ class Gprs:
             self.response_mismatches(GPRS_RESPONSE_REG)
         return False
 
+    def method_match_error(self, arg):
+        '''
+        handle ERROR parsing
+        '''
+        if (0 < len(self.response_list)
+        and GPRS_RESPONSE_ERROR == self.response_list[0]):
+            self.next_state = self.state_string_to_int_dict['GPRS_STATE_IP_STATUS']
+            self.response_matches()
+            return True
+        else:
+            return method_match_goto_foo(GPRS_RESPONSE_ERROR)
+        return False
     '''
     This is a dictionary of exact radio output lines and how to handle them
     '''
@@ -1140,7 +1152,7 @@ class Gprs:
         b'STATE: PDP DEACT\r\n': {'method': method_match_ipstatus, 'arg': 'GPRS_STATE_IPSHUT'},
         b'+PDP: DEACT\r\n': {'method': method_match_pdp_deact, 'arg': 0},
         b'+CME ERROR: 3\r\n': {'method': method_match_cme_error, 'arg': 0},
-        b'ERROR\r\n': {'method': method_match_goto_foo, 'arg': GPRS_RESPONSE_ERROR},
+        b'ERROR\r\n': {'method': method_match_error, 'arg': GPRS_RESPONSE_ERROR},
         b'SEND FAIL\r\n': {'method': method_match_goto_foo, 'arg': GPRS_RESPONSE_SENDOK},
         b'CONNECT FAIL\r\n': {'method': method_match_goto_foo, 'arg': GPRS_RESPONSE_CONNECTOK},
         b'CLOSED\r\n': {'method': method_match_closed, 'arg': 0},
