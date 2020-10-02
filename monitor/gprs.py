@@ -986,6 +986,14 @@ class Gprs:
             self.next_state = self.state_string_to_int_dict[strstate]
             self.response_matches()
             return True
+        elif (0 < len(self.response_list)
+        and GPRS_RESPONSE_CONNECTOK == self.response_list[0]
+        and self.state_string_to_int_dict['GPRS_STATE_CIPSTART'] == self.previous_state): # we have advanced to the next state already
+            # I have seen this happen a couple of times
+            # expecting CONNECT OK, but get STATE: IP STATUS
+            self.next_state = self.state_string_to_int_dict['GPRS_STATE_IP_STATUS']
+            self.response_matches()
+            return True
         else:
             self.response_mismatches(GPRS_RESPONSE_IPSTATUS)
         return False
@@ -1115,7 +1123,7 @@ class Gprs:
             self.response_matches()
             return True
         else:
-            return method_match_goto_foo(GPRS_RESPONSE_ERROR)
+            return self.method_match_goto_foo(GPRS_RESPONSE_ERROR)
         return False
     '''
     This is a dictionary of exact radio output lines and how to handle them
