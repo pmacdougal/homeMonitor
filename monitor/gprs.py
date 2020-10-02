@@ -1170,6 +1170,7 @@ class Gprs:
         b'STATE: TCP CLOSING\r\n': {'method': method_match_ipconfig, 'arg': 3},
         b'STATE: PDP DEACT\r\n': {'method': method_match_ipstatus, 'arg': 'GPRS_STATE_IPSHUT'},
         b'+PDP: DEACT\r\n': {'method': method_match_pdp_deact, 'arg': 0},
+        b'AT+CIICR\r+PDP: DEACT\r\n': {'method': method_match_pdp_deact, 'arg': 0},
         b'+CME ERROR: 3\r\n': {'method': method_match_cme_error, 'arg': 0},
         b'ERROR\r\n': {'method': method_match_error, 'arg': GPRS_RESPONSE_ERROR},
         b'SEND FAIL\r\n': {'method': method_match_goto_foo, 'arg': GPRS_RESPONSE_SENDOK},
