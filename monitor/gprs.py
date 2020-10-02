@@ -163,6 +163,14 @@ class GprsState:
         handle errors
         """
         logging.info('method_foo(): STATE_FOO entered with state machine coming from %s', self.radio.state_string_list[self.radio.previous_state])
+        # loop here for a while, dumping radio output
+        start = time.time()
+        while 30 < time.time() - start: # 30 seconds
+            if self.radio.check_radio_output():
+                print(self.radio.radio_output)
+                self.radio.radio_output = b''
+            else:
+                time.sleep(0.5)
         raise KeyboardInterrupt # try to exit the program here
 
     def method_power_up(self):
