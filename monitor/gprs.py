@@ -30,6 +30,8 @@ GPRS_RESPONSE_SQ = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
 GPRS_RESPONSE_TIME = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
 GPRS_RESPONSE_MQTT = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
 GPRS_RESPONSE_FLUSH = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
+GPRS_RESPONSE_CONNECTFAIL = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
+
 
 class xxx(Exception):
     pass
@@ -992,6 +994,7 @@ class Gprs:
             # I have seen this happen a couple of times
             # expecting CONNECT OK, but get STATE: IP STATUS
             self.next_state = self.state_string_to_int_dict['GPRS_STATE_IP_STATUS']
+            self.response_list = [GPRS_RESPONSE_IPSTATUS, GPRS_RESPONSE_BLANK, GPRS_RESPONSE_CONNECTFAIL]
             self.response_matches()
             return True
         else:
@@ -1134,6 +1137,7 @@ class Gprs:
         b'SHUT OK\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_SHUTOK},
         b'SEND OK\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_SENDOK},
         b'CONNECT OK\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_CONNECTOK},
+        b'CONNECT FAIL\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_CONNECTFAIL},
         b'AT+CIPSEND\r\n': {'method': method_premature_ipsend, 'arg': GPRS_RESPONSE_ECHO},
         b'AT\r\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_ECHO},
         b'AT+CGNSTST=0\r\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_ECHO},
