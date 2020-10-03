@@ -801,10 +801,11 @@ class Gprs:
         '''
         handle getting a spontaneous 'CLOSED\r\n'
         '''
+        self.connected = False
+        self.radio_busy = True # this is to get the code to go to the next_state
+        self.next_state = self.state_string_to_int_dict['GPRS_STATE_IP_STATUS']
         self.response_list = [GPRS_RESPONSE_SPONTANEOUS]
         self.response_matches()
-        self.connected = False
-        self.next_state = self.state_string_to_int_dict['GPRS_STATE_IP_STATUS']
         return True
 
     def method_match_calr(self, arg):
@@ -841,7 +842,6 @@ class Gprs:
             self.response_matches()
             return True
         return self.method_match_goto_foo(GPRS_RESPONSE_ERROR)
-        return False
 
     def method_match_sendfail(self, token):
         '''
@@ -856,7 +856,7 @@ class Gprs:
         return False
 
 
-    def method_match_sendok(self, token)
+    def method_match_sendok(self, token):
         '''
         handle SEND OK parsing
         '''
