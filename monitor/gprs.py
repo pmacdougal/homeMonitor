@@ -746,13 +746,8 @@ class Gprs:
         and token == self.response_list[0]
         and b'AT+CIPSEND' == self.command):
             # Sometimes, we get the mqtt packet after echo
-            if (0 == len(self.response_list)
-            and self.state_string_to_int_dict['GPRS_STATE_PUBLISH'] == self.previous_state): # we have advanced to the next state already
-                self.response_list = [GPRS_RESPONSE_MQTT]
-            else:
-                logging.error('AT+CIPSEND\\r\\n seen while response list was not empty (%s)', self.response_list)
-                self.goto_foo()
             self.response_matches()
+            self.response_list.push_front(GPRS_RESPONSE_MQTT)
             return True
         self.response_mismatches(token)
         return False
