@@ -303,6 +303,7 @@ class Gprs:
         self.next_state = self.state_string_to_int_dict['GPRS_STATE_UNDEFINED']
         self.start_delay_time = 0
         self.delay_time = 0
+        self.successfully_published = False
 
         self.state_list = [None]*len(self.state_string_to_int_dict)
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_INITIAL']]     = GprsState(self, b'AT',           [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK], self.state_string_to_int_dict['GPRS_STATE_DISABLE_GPS'], prefix='power_up')
@@ -346,301 +347,7 @@ class Gprs:
             self.radio_output += newbytes
             return len(newbytes)
         return 0
-    '''
-    def check_input(self):
-        '''
-        read bytes from serial port concatenating them into an internal byte array
-        more docstring stuff
-        '''
-        if None != self.ser and 0 < self.ser.in_waiting:
-            self.ser.timeout = 1
-            newbytes = self.ser.read_until(terminator=b'\r\n')
-            self.bytes += newbytes
-            return len(newbytes)
-        return 0
 
-    def stringify_response(self, token):
-        '''
-        convert constants to string representations
-        '''
-        if GPRS_RESPONSE_BLANK == token:
-            return 'blank'
-        elif GPRS_RESPONSE_OK == token:
-            return 'OK'
-        elif GPRS_RESPONSE_ECHO == token:
-            return self.command
-        elif GPRS_RESPONSE_IPSTATUS == token:
-            return 'IP STATUS'
-        elif GPRS_RESPONSE_CALR == token:
-            return 'CALR'
-        elif GPRS_RESPONSE_REG == token:
-            return 'REG'
-        elif GPRS_RESPONSE_SQ == token:
-            return 'SQ'
-        elif GPRS_RESPONSE_SHUTOK == token:
-            return 'SHUT OK'
-        elif GPRS_RESPONSE_TIME == token:
-            return 'TIME'
-        elif GPRS_RESPONSE_SPONTANEOUS == token:
-            return 'GPRS_RESPONSE_SPONTANEOUS'
-        elif GPRS_RESPONSE_IPADDR == token:
-            return 'GPRS_RESPONSE_IPADDR'
-        elif GPRS_RESPONSE_CONNACK == token:
-            return 'GPRS_RESPONSE_CONNACK'
-        elif GPRS_RESPONSE_SENDOK == token:
-            return 'GPRS_RESPONSE_SENDOK'
-        elif GPRS_RESPONSE_CONNECTOK == token:
-            return 'GPRS_RESPONSE_CONNECTOK'
-        elif GPRS_RESPONSE_MQTT == token:
-            return 'GPRS_RESPONSE_MQTT'
-        else:
-            raise NotImplementedError
-
-    # see if the string parameter is at the beginning of the recieved bytes from the radio
-    def is_prefix(self, string, *, pop=False):
-        if string == self.bytes[0:len(string)]:
-            if pop:
-                self.bytes = self.bytes[len(string):]
-            return True
-        else:
-            #logging.debug('%s is not a prefix of %s', string, self.bytes)
-            return False
-
-    # see if the radio responded with the expected response
-    def match_response(self, string, response, *, partial=False):
-        if self.is_prefix(string, pop=True):
-            if partial:
-                pos = self.bytes.find(b'\r\n')
-                #logging.debug('%s End of line is at %d', self.bytes, pos)
-                if -1 == pos:
-                    self.remainder = self.bytes[0:]
-                    self.bytes = []
-                else:
-                    self.remainder = self.bytes[0:pos]
-                    self.bytes = self.bytes[pos+2:]
-
-            # match with the expected response
-            if GPRS_RESPONSE_SPONTANEOUS == response:
-                # don't match this with expected responses
-                return True
-            else:
-                str_response = self.stringify_response(response)
-                #logging.debug('Gprs.match_response(): found %s line', str_response)
-                if 0 < len(self.response_list):
-                    if response == self.response_list[0]:
-                        logging.debug('remove %s from response_list', str_response)
-                        self.response_list.pop(0)
-                        return True
-                    else:
-                        logging.error('Gprs.match_response(): found %s line where %s was expected', str_response, self.stringify_response(self.response_list[0]))
-                        self.goto_foo()
-
-                else:
-                    # got a blank line while not expecting any response
-                    logging.error('Gprs.match_response(): found blank line where nothing was expected')
-                    self.goto_foo()
-
-        return False
-
-    # remove bytes until we reach \r\n
-    def clear_to_end_of_line(self):
-        pos = self.bytes.find(b'\r\n')
-        #logging.debug('%s End of line is at %d', self.bytes, pos)
-        if -1 == pos:
-            raise NotImplementedError
-        self.bytes = self.bytes[pos+2:]
-
-    # match bytes from the radio with expected responses
-    def process_bytes(self, new_byte_count):
-        # if there is no response from radio, just return
-        numbytes = len(self.bytes)
-        if 0 == numbytes:
-            return False
-
-        # handle responses that do not end with \r\n (tyically MQTT packets)
-        if 0 < len(self.response_list) and GPRS_RESPONSE_CONNACK == self.response_list[0]:
-            if 4 <= numbytes:
-                # MQTT CONNACK packet
-                # opcode 32
-                # length - 2
-                # session present - 0 or 1
-                # payload - 0, 1, 2, 3, 4, 5
-                #if (b' ' == self.bytes[0]
-                #and b'\x02' == self.bytes[1]
-                #and (b'\x00' == self.bytes[2] or b'\x01' == self.bytes[2])):
-                if (32 == self.bytes[0]
-                and 2 == self.bytes[1]
-                and (0 == self.bytes[2] or 1 == self.bytes[2])):
-                    if 0 == self.bytes[3]:
-                        logging.info('Got CONNACK from MQTT broker.  Connected is now true.')
-                        self.response_list.pop(0)
-                        self.bytes = self.bytes[4:]
-                        self.connected = True
-                        return True
-                    else:
-                        logging.error('CONNACK connection refused.  Status %s', self.bytes[3])
-                        self.goto_foo()
-
-        elif 0 < len(self.response_list) and GPRS_RESPONSE_MQTT == self.response_list[0]:
-            if (48 == self.bytes[0] # MQTT_CTRL_PUBLISH<<4
-            and 3+self.bytes[1] <= len(self.bytes)): # length matches
-                self.bytes = self.bytes[3+self.bytes[1]:]
-                self.response_list.pop(0)
-                return True
-
-        if not b'\r\n' in self.bytes:
-            if new_byte_count:
-                logging.debug('partial line detected %d %s', numbytes, self.bytes)
-            return False
-
-        # try to match the response (we could refactor relative to self.command)
-        logging.debug('    Gprs.process_bytes() %s - %s %s', self.lines_of_response, self.bytes, self.response_list)
-        self.lines_of_response += 1
-        if self.match_response(b'\r\n', GPRS_RESPONSE_BLANK):
-            pass
-        elif self.is_prefix(b'AT+', pop=False):
-            if self.match_response(self.command + b'\r\r\n', GPRS_RESPONSE_ECHO):
-                pass
-            elif self.match_response('AT+CIPSEND\r\n', GPRS_RESPONSE_ECHO):
-                # Sometimes, we get the mqtt packet after echo
-                logging.debug('Got AT+CIPSEND\\r\\n %s %s %s %s', self.response_list, self.state_string_list[self.previous_state], self.state_string_list[self.state], self.state_string_list[self.next_state])
-                if (0 == len(self.response_list)
-                and self.state_string_to_int_dict['GPRS_STATE_PUBLISH'] == self.previous_state): # we have advanced to the next state already
-                    self.response_list = [GPRS_RESPONSE_MQTT]
-                else:
-                    logging.error('AT+CIPSEND\\r\\n seen while response list was not empty (%s)', self.response_list)
-                    self.goto_foo()
-            elif self.match_response(self.command + b'\r', GPRS_RESPONSE_ECHO, partial=True):
-                # self.remainder should be the remainder of the line (e.g. MQTT connect packet)
-                pass
-            else:
-                logging.error('got AT+ prefix but not %s\\r\\r\\n', self.command)
-                return False
-        elif self.is_prefix(b'AT', pop=False):
-            if self.match_response(b'AT\r\r\n', GPRS_RESPONSE_ECHO):
-                pass
-            else:
-                logging.error('AT prefix, but not AT\\r\\r\\n')
-                return False
-        elif self.match_response(b'OK\r\n', GPRS_RESPONSE_OK):
-            pass
-        elif self.match_response(b'SHUT OK\r\n', GPRS_RESPONSE_SHUTOK):
-            pass
-        elif self.match_response(b'SEND OK\r\n', GPRS_RESPONSE_SENDOK):
-            pass
-        elif self.match_response(b'STATE: IP INITIAL\r\n', GPRS_RESPONSE_IPSTATUS):
-            self.next_state = self.state_string_to_int_dict['GPRS_STATE_CSTT']
-        elif self.match_response(b'STATE: IP START\r\n', GPRS_RESPONSE_IPSTATUS):
-            self.next_state = self.state_string_to_int_dict['GPRS_STATE_CIICR']
-        elif self.match_response(b'STATE: IP GPRSACT\r\n', GPRS_RESPONSE_IPSTATUS):
-            self.next_state = self.state_string_to_int_dict['GPRS_STATE_CIFSR']
-        elif self.match_response(b'STATE: IP STATUS\r\n', GPRS_RESPONSE_IPSTATUS):
-            self.next_state = self.state_string_to_int_dict['GPRS_STATE_CIPSTART']
-        elif self.match_response(b'STATE: TCP CLOSED\r\n', GPRS_RESPONSE_IPSTATUS):
-            self.next_state = self.state_string_to_int_dict['GPRS_STATE_IPSHUT']
-        elif self.match_response(b'STATE: IP CONFIG\r\n', GPRS_RESPONSE_IPSTATUS):
-            logging.debug('Delay 3 seconds before going into state GPRS_STATE_IP_STATUS')
-            self.previous_state = self.state
-            self.state = self.state_string_to_int_dict['GPRS_STATE_DELAY']
-            self.start_delay_time = time.time()
-            self.next_state = self.state_string_to_int_dict['GPRS_STATE_IP_STATUS']
-            self.delay_time = 3
-        elif self.match_response(b'STATE: TCP CONNECTING\r\n', GPRS_RESPONSE_IPSTATUS):
-            logging.debug('Delay 10 seconds before going into state GPRS_STATE_IP_STATUS')
-            self.previous_state = self.state
-            self.state = self.state_string_to_int_dict['GPRS_STATE_DELAY']
-            self.start_delay_time = time.time()
-            self.next_state = self.state_string_to_int_dict['GPRS_STATE_IP_STATUS']
-            self.delay_time = 10
-        elif self.match_response(b'STATE: TCP CLOSING\r\n', GPRS_RESPONSE_IPSTATUS):
-            logging.debug('Delay 3 seconds before going into state GPRS_STATE_IP_STATUS')
-            self.previous_state = self.state
-            self.state = self.state_string_to_int_dict['GPRS_STATE_DELAY']
-            self.start_delay_time = time.time()
-            self.next_state = self.state_string_to_int_dict['GPRS_STATE_IP_STATUS']
-            self.delay_time = 3
-        elif self.match_response(b'STATE: PDP DEACT\r\n', GPRS_RESPONSE_IPSTATUS):
-            self.next_state = self.state_string_to_int_dict['GPRS_STATE_IPSHUT']
-        elif self.match_response(b'CONNECT OK\r\n', GPRS_RESPONSE_CONNECTOK):
-            pass
-        elif self.match_response(b'+CCALR: 0\r\n', GPRS_RESPONSE_CALR):
-            self.call_ready = False
-        elif self.match_response(b'+CCALR: 1\r\n', GPRS_RESPONSE_CALR):
-            self.call_ready = True
-        elif self.match_response(b'+CREG: 0,0\r\n', GPRS_RESPONSE_REG):
-            self.registered = False
-        elif self.match_response(b'+CREG: 0,1\r\n', GPRS_RESPONSE_REG):
-            self.registered = True
-        elif self.match_response(b'+CREG: 0,2\r\n', GPRS_RESPONSE_REG):
-            self.registered = False
-        elif self.match_response(b'+CREG: 0,5\r\n', GPRS_RESPONSE_REG): # roaming
-            self.registered = True
-
-        elif self.match_response(b'+CCLK: "', GPRS_RESPONSE_TIME, partial=True):
-            temp = self.remainder.decode(encoding='UTF-8').split(',') # yy/MM/dd,hh:mm:ss+zz"
-            # temp[0] is yy/MM/dd
-            # temp[1] is hh:mm:ss+zz"
-            logging.debug('Time is %s', temp[1][0:-1])
-
-        elif self.match_response(b'+CSQ: ', GPRS_RESPONSE_SQ, partial=True):
-            temp = self.remainder.decode(encoding='UTF-8').split(',')
-            signal = temp[0]
-            if 1 == len(signal):
-                self.signal = ord(signal[0]) - ord(b'0')
-            elif 2 == len(signal):
-                self.signal = (ord(signal[0]) - ord(b'0'))*10 + (ord(signal[1]) - ord(b'0'))
-            else:
-                logging.error('This is unexpected.  len(signal) is %s', len(signal))
-                self.signal = 0
-            logging.debug('Signal quality is %d', self.signal)
-
-        # Error conditions
-        elif self.match_response(b'+CME ERROR: 3\r\n', GPRS_RESPONSE_SPONTANEOUS):
-            logging.info('Got CME ERROR %s %s', self.response_list, self.state_string_list[self.previous_state])
-            # I don't think there is anything else coming from the radio on the serial port
-                self.response_list.clear()
-                self.next_state = self.state_string_to_int_dict['GPRS_STATE_IP_STATUS']
-        elif self.match_response(b'+PDP: DEACT\r\n', GPRS_RESPONSE_SPONTANEOUS):
-            logging.info('Got PDP: DEACT %s %s', self.response_list, self.state_string_list[self.previous_state])
-            if (1 == len(self.response_list)
-            and GPRS_RESPONSE_OK == self.response_list[0]
-            and self.state_string_to_int_dict['GPRS_STATE_CIICR'] == self.previous_state): # we have advanced to the next state already
-                self.response_list = [GPRS_RESPONSE_BLANK, GPRS_RESPONSE_ERROR]
-            elif (1 == len(self.response_list)
-            and GPRS_RESPONSE_SENDOK == self.response_list[0]
-            and self.state_string_to_int_dict['GPRS_STATE_KEEPALIVE'] == self.previous_state): # we have advanced to the next state already
-                # I don't think there is anything else coming from the radio on the serial port
-                self.response_list.clear()
-                self.next_state = self.state_string_to_int_dict['GPRS_STATE_IP_STATUS']
-        elif self.match_response(b'ERROR\r\n', GPRS_RESPONSE_ERROR):
-            self.goto_foo()
-        elif self.match_response(b'SEND FAIL\r\n', GPRS_RESPONSE_SENDOK):
-            self.goto_foo()
-        elif self.match_response(b'CLOSED\r\n', GPRS_RESPONSE_SPONTANEOUS):
-            self.connected = False
-            self.response_list.clear()
-            self.next_state = self.state_string_to_int_dict['GPRS_STATE_IP_STATUS']
-        elif self.match_response(b'CONNECT FAIL\r\n', GPRS_RESPONSE_CONNECTOK):
-            self.goto_foo()
-        # hard to identify things (need regex or some such)
-        elif 0 < len(self.response_list) and GPRS_RESPONSE_IPADDR == self.response_list[0]:
-            temp = self.bytes.decode(encoding='UTF-8').split('.') # xxx.xxx.xxx.xxx
-            if 4 == len(temp):
-                logging.debug('IP Address is %s.%s.%s.%s', temp[0], temp[1], temp[2], temp[3])
-                self.response_list.pop(0)
-                self.clear_to_end_of_line()
-            else:
-                logging.error('Failed to parse line that should have been an IP address: %s', self.bytes)
-                self.goto_foo()
-
-        else:
-            logging.error('Gprs.process_bytes(): write code to handle %s %d', self.bytes, numbytes)
-            raise NotImplementedError
-            #self.clear_to_end_of_line()
-            return False
-
-        return True
-    '''
     def goto_foo(self):
         '''
         Cause the state machine to enter the 'Something bad has happened' state
@@ -1124,7 +831,7 @@ class Gprs:
         self.response_mismatches(GPRS_RESPONSE_REG)
         return False
 
-    def method_match_error(self, arg):
+    def method_match_error(self, unused):
         '''
         handle ERROR parsing
         '''
@@ -1135,6 +842,35 @@ class Gprs:
             return True
         return self.method_match_goto_foo(GPRS_RESPONSE_ERROR)
         return False
+
+    def method_match_sendfail(self, token):
+        '''
+        handle SEND FAIL parsing
+        '''
+        if (0 < len(self.response_list)
+        and GPRS_RESPONSE_SENDOK == self.response_list[0]):
+            self.successfully_published = False
+            self.response_matches()
+            return True
+        self.response_mismatches(GPRS_RESPONSE_SENDOK)
+        return False
+
+
+    def method_match_sendok(self, token)
+        '''
+        handle SEND OK parsing
+        '''
+        if (0 < len(self.response_list)
+        and GPRS_RESPONSE_SENDOK == self.response_list[0]):
+            # At this point, we have successfully published the message to the topic
+            self.successfully_published = True
+            self.response_matches()
+            return True
+        self.response_mismatches(GPRS_RESPONSE_SENDOK)
+        return False
+
+
+
     '''
     This is a dictionary of exact radio output lines and how to handle them
     '''
@@ -1142,10 +878,11 @@ class Gprs:
         b'\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_BLANK},
         b'OK\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_OK},
         b'SHUT OK\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_SHUTOK},
-        b'SEND OK\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_SENDOK},
+        b'SEND OK\r\n': {'method': method_match_sendok, 'arg': GPRS_RESPONSE_SENDOK},
         b'CONNECT OK\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_CONNECTOK},
-        b'AT+CIPSEND\r\n': {'method': method_premature_ipsend, 'arg': GPRS_RESPONSE_ECHO},
+        # there are echo responses
         b'AT\r\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_ECHO},
+        b'AT+CIPSEND\r\n': {'method': method_premature_ipsend, 'arg': GPRS_RESPONSE_ECHO},
         b'AT+CGNSTST=0\r\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_ECHO},
         b'AT+CMEE=1\r\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_ECHO},
         b'AT+CIPSPRT=0\r\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_ECHO},
@@ -1159,22 +896,26 @@ class Gprs:
         b'AT+CIICR\r\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_ECHO},
         b'AT+CIFSR\r\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_ECHO},
         b'AT+CIPSTART="TCP","io.adafruit.com","1883"\r\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_ECHO},
+        # these are IP STATUS responses
         b'STATE: IP INITIAL\r\n': {'method': method_match_ipstatus, 'arg': 'GPRS_STATE_CSTT'},
         b'STATE: IP START\r\n': {'method': method_match_ipstatus, 'arg': 'GPRS_STATE_CIICR'},
         b'STATE: IP GPRSACT\r\n': {'method': method_match_ipstatus, 'arg': 'GPRS_STATE_CIFSR'},
         b'STATE: IP STATUS\r\n': {'method': method_match_ipstatus, 'arg': 'GPRS_STATE_CIPSTART'},
         b'STATE: TCP CLOSED\r\n': {'method': method_match_ipstatus, 'arg': 'GPRS_STATE_IPSHUT'},
+        b'STATE: PDP DEACT\r\n': {'method': method_match_ipstatus, 'arg': 'GPRS_STATE_IPSHUT'},
+        # these are transient IP STATUS responses
         b'STATE: IP CONFIG\r\n': {'method': method_match_ipconfig, 'arg': 3},
         b'STATE: TCP CONNECTING\r\n': {'method': method_match_ipconfig, 'arg': 10},
         b'STATE: TCP CLOSING\r\n': {'method': method_match_ipconfig, 'arg': 3},
-        b'STATE: PDP DEACT\r\n': {'method': method_match_ipstatus, 'arg': 'GPRS_STATE_IPSHUT'},
+        # these are errors or unusual responses
+        b'ERROR\r\n': {'method': method_match_error, 'arg': GPRS_RESPONSE_ERROR},
+        b'SEND FAIL\r\n': {'method': method_match_sendfail, 'arg': GPRS_RESPONSE_SENDOK},
+        b'CONNECT FAIL\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_CONNECTFAIL},
+        b'CLOSED\r\n': {'method': method_match_closed, 'arg': 0},
         b'+PDP: DEACT\r\n': {'method': method_match_pdp_deact, 'arg': 0},
         b'AT+CIICR\r+PDP: DEACT\r\n': {'method': method_match_pdp_deact, 'arg': 0},
         b'+CME ERROR: 3\r\n': {'method': method_match_cme_error, 'arg': 0},
-        b'ERROR\r\n': {'method': method_match_error, 'arg': GPRS_RESPONSE_ERROR},
-        b'SEND FAIL\r\n': {'method': method_match_goto_foo, 'arg': GPRS_RESPONSE_SENDOK},
-        b'CONNECT FAIL\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_CONNECTFAIL},
-        b'CLOSED\r\n': {'method': method_match_closed, 'arg': 0},
+        # these could be done via regex
         b'+CCALR: 0\r\n': {'method': method_match_calr, 'arg': False},
         b'+CCALR: 1\r\n': {'method': method_match_calr, 'arg': True},
         b'+CREG: 0,0\r\n': {'method': method_match_creg, 'arg': False},
@@ -1194,5 +935,6 @@ class Gprs:
         if not self.connected:
             raise NotImplementedError
         packet = self.build_message_packet(topic, message)
+        self.successfully_published = False
         self.send_command(b'AT+CIPSEND', packet, [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_SENDOK], self.state_string_to_int_dict['GPRS_STATE_PUBLISH'])
 

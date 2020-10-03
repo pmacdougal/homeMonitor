@@ -97,9 +97,17 @@ class Adafruit:
                         self.gprs.loop()
                         # see if radio is ready for data
                         if self.gprs.is_ready():
+                            if self.gprs.successfully_published:
+                                # previous message was published (we got SEND OK)
+                                self.gprs.successfully_published = False
+                                return 0 # casues message to be popped
+                            else:
+                                pass
+                            
                             logging.debug('Adafruit: publish %s to %s', message, topic)
                             self.gprs.publish(topic, message)
                             # getting here does not mean that the data got to AdaFruit
+                            return 1 # we have queued the publish, but must wait for self.gprs.successfully_published to go True
                         else:
                             return 1 # unsuccessful processing of this message
                     else:
