@@ -721,7 +721,7 @@ class Gprs:
             # self.radio_output has a CRLF (most likely at the end of the string)
             logging.debug('    Gprs.handle_radio_output() %s - %s %s', self.lines_of_response, self.radio_output, self.response_list)
             self.lines_of_response += 1
-            
+
             # See if this is exactly one of the expected responses (e.g. 'OK\r\n')
             if self.radio_output in self.METHODS:
                 method = self.METHODS[self.radio_output]
@@ -982,8 +982,7 @@ class Gprs:
                 self.response_list = [GPRS_RESPONSE_SPONTANEOUS]
                 self.response_matches()
                 return True
-            else:
-                self.response_mismatches(token)
+        self.response_mismatches(token)
         return False
 
     def method_match_ipstatus(self, strstate):
@@ -1005,8 +1004,7 @@ class Gprs:
             self.response_list = [GPRS_RESPONSE_IPSTATUS, GPRS_RESPONSE_BLANK, GPRS_RESPONSE_CONNECTFAIL]
             self.response_matches()
             return True
-        else:
-            self.response_mismatches(GPRS_RESPONSE_IPSTATUS)
+        self.response_mismatches(GPRS_RESPONSE_IPSTATUS)
         return False
 
     def method_match_ipconfig(self, delay):
@@ -1024,8 +1022,7 @@ class Gprs:
             self.delay_time = delay
             self.response_matches()
             return True
-        else:
-            self.response_mismatches(GPRS_RESPONSE_IPSTATUS)
+        self.response_mismatches(GPRS_RESPONSE_IPSTATUS)
         return False
 
     def method_premature_ipsend(self, token):
@@ -1033,11 +1030,11 @@ class Gprs:
         Usually, we get AT+CIPSEND\\r<MQTT PACKET>\\r\\n
         but, sometimes we get AT+CIPSEND\\r\\n<MQTT PACKET>
         '''
+        logging.debug("Got AT+CIPSEND\\r\\n %s %s %s %s %s %s", self.response_list, self.state_string_list[self.previous_state], self.state_string_list[self.state], self.state_string_list[self.next_state], token, self.command)
         if (0 < len(self.response_list)
         and token == self.response_list[0]
-        and 'AT+CIPSEND' == self.command):
+        and b'AT+CIPSEND' == self.command):
             # Sometimes, we get the mqtt packet after echo
-            logging.debug("Got AT+CIPSEND\\r\\n %s %s %s %s", self.response_list, self.state_string_list[self.previous_state], self.state_string_list[self.state], self.state_string_list[self.next_state])
             if (0 == len(self.response_list)
             and self.state_string_to_int_dict['GPRS_STATE_PUBLISH'] == self.previous_state): # we have advanced to the next state already
                 self.response_list = [GPRS_RESPONSE_MQTT]
@@ -1046,6 +1043,7 @@ class Gprs:
                 self.goto_foo()
             self.response_matches()
             return True
+        self.response_mismatches(token)
         return False
 
     def method_match_pdp_deact(self, arg):
@@ -1085,7 +1083,7 @@ class Gprs:
             return True
         else:
             logging.error('method_match_goto_foo() called with non matching response token %d rather than the expected %d', token, self.response_list[0])
-            self.response_mismatches(token)
+        self.response_mismatches(token)
         return False
 
     def method_match_closed(self, arg):
@@ -1107,8 +1105,7 @@ class Gprs:
             self.response_matches()
             self.call_ready = arg
             return True
-        else:
-            self.response_mismatches(GPRS_RESPONSE_CALR)
+        self.response_mismatches(GPRS_RESPONSE_CALR)
         return False
 
     def method_match_creg(self, arg):
@@ -1120,8 +1117,7 @@ class Gprs:
             self.response_matches()
             self.registered = arg
             return True
-        else:
-            self.response_mismatches(GPRS_RESPONSE_REG)
+        self.response_mismatches(GPRS_RESPONSE_REG)
         return False
 
     def method_match_error(self, arg):
@@ -1133,8 +1129,7 @@ class Gprs:
             self.next_state = self.state_string_to_int_dict['GPRS_STATE_IP_STATUS']
             self.response_matches()
             return True
-        else:
-            return self.method_match_goto_foo(GPRS_RESPONSE_ERROR)
+        return self.method_match_goto_foo(GPRS_RESPONSE_ERROR)
         return False
     '''
     This is a dictionary of exact radio output lines and how to handle them
