@@ -747,7 +747,7 @@ class Gprs:
         and b'AT+CIPSEND' == self.command):
             # Sometimes, we get the mqtt packet after echo
             self.response_matches()
-            self.response_list.push_front(GPRS_RESPONSE_MQTT)
+            self.response_list.insert(0, GPRS_RESPONSE_MQTT)
             return True
         self.response_mismatches(token)
         return False
