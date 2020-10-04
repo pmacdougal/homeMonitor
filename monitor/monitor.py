@@ -24,7 +24,7 @@ class Monitor:
 
     def run(self, msg, topic, mqtt_ip):
         metering_queue = []
-        metering_queue.append({"topic": topic, "message": msg})
+        metering_queue.append({'topic': topic, 'message': msg})
 
         try:
             aio = Adafruit(username, password, self.access)
@@ -44,12 +44,13 @@ class Monitor:
 
                     if len(metering_queue):
                         #if (isinstance(metering_queue[0], dict)
-                        #and "topic" in metering_queue[0]
-                        #and "message" in metering_queue[0]):
-                        t = metering_queue[0].get("topic", "")
-                        m = metering_queue[0].get("message", "")
-                        f = metering_queue[0].get("filter", True)
+                        #and 'topic' in metering_queue[0]
+                        #and 'message' in metering_queue[0]):
+                        t = metering_queue[0].get('topic', '')
+                        m = metering_queue[0].get('message', '')
+                        f = metering_queue[0].get('filter', True)
                         if 0 == aio.publish(t, m, filter=f): # if successful handling of this message
+                            logging.info('Monitor.run() popping metering_queue for %s', t)
                             metering_queue.pop(0)
                     else:
                         aio.loop()
