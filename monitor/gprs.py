@@ -475,7 +475,7 @@ class Gprs:
                     logging.debug('Signal quality is %d', self.signal)
                     self.response_matches()
                     return True
-                elif self.radio_output.startswith(b'+CME ERROR: ')
+                elif self.radio_output.startswith(b'+CME ERROR: '):
                     errno = int(self.radio_output[11:].decode(encoding='UTF-8'))
                     return self.method_match_cme_error(errno)
                 elif (0 < len(self.response_list)
