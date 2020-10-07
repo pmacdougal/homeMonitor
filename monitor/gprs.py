@@ -843,13 +843,20 @@ class Gprs:
         handle SEND FAIL parsing
         '''
         if (0 < len(self.response_list)
-        and GPRS_RESPONSE_SENDOK == self.response_list[0]):
+        and token == self.response_list[0]):
             self.successfully_published = False
             self.response_matches()
             return True
-        self.response_mismatches(GPRS_RESPONSE_SENDOK)
+        self.response_mismatches(token)
         return False
 
+    def method_match_connectfail(self, token):
+        '''
+        handle CONNECT FAIL parsing
+        '''
+        self.next_state = self.state_string_to_int_dict['GPRS_STATE_IPSHUT']
+        self.response_matches() # flush the output and response list
+        return True # we want to go to the next state
 
     def method_match_sendok(self, token):
         '''
@@ -911,7 +918,7 @@ class Gprs:
         # these are errors or unusual responses
         b'ERROR\r\n': {'method': method_match_error, 'arg': GPRS_RESPONSE_ERROR},
         b'SEND FAIL\r\n': {'method': method_match_sendfail, 'arg': GPRS_RESPONSE_SENDOK},
-        b'CONNECT FAIL\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_CONNECTFAIL},
+        b'CONNECT FAIL\r\n': {'method': method_match_connectfail, 'arg': GPRS_RESPONSE_CONNECTOK},
         b'CLOSED\r\n': {'method': method_match_closed, 'arg': 0},
         b'+PDP: DEACT\r\n': {'method': method_match_pdp_deact, 'arg': 0},
         b'AT+CIICR\r+PDP: DEACT\r\n': {'method': method_match_pdp_deact, 'arg': 0},
