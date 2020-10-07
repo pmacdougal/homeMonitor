@@ -771,7 +771,7 @@ class Gprs:
         '''
         CME ERROR
         '''
-        logging.info('Got CME ERROR %s %s', self.response_list, self.state_string_list[self.previous_state])
+        logging.info('Got CME ERROR %s %s %s', arg, self.response_list, self.state_string_list[self.previous_state])
         # there may be an MQTT packet echoed from the radio here.  We need to flush that
         self.response_list = [GPRS_RESPONSE_SPONTANEOUS]
         self.next_state = self.state_string_to_int_dict['GPRS_STATE_FLUSH']
@@ -915,7 +915,8 @@ class Gprs:
         b'CLOSED\r\n': {'method': method_match_closed, 'arg': 0},
         b'+PDP: DEACT\r\n': {'method': method_match_pdp_deact, 'arg': 0},
         b'AT+CIICR\r+PDP: DEACT\r\n': {'method': method_match_pdp_deact, 'arg': 0},
-        b'+CME ERROR: 3\r\n': {'method': method_match_cme_error, 'arg': 0},
+        b'+CME ERROR: 3\r\n': {'method': method_match_cme_error, 'arg': 3},
+        b'+CME ERROR: 107\r\n': {'method': method_match_cme_error, 'arg': 107},
         # these could be done via regex
         b'+CCALR: 0\r\n': {'method': method_match_calr, 'arg': False},
         b'+CCALR: 1\r\n': {'method': method_match_calr, 'arg': True},
