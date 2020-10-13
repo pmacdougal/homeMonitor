@@ -304,6 +304,7 @@ class Gprs:
         self.start_delay_time = 0
         self.delay_duration = 0
         self.successfully_published = False
+        self.output_timeout_start_time = 0
 
         self.state_list = [None]*len(self.state_string_to_int_dict)
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_CALL_READY']]  = GprsState(self, b'AT+CCALR?',    [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_CALR, GPRS_RESPONSE_OK], self.state_string_to_int_dict['GPRS_STATE_CALL_READY'], prefix='loop_cr')
@@ -345,7 +346,13 @@ class Gprs:
             self.ser.timeout = 1
             newbytes = self.ser.read_until(terminator=b'\r\n')
             self.radio_output += newbytes
+            self.output_timeout_start_time = time.time()
             return len(newbytes)
+
+        # timeout
+        if self.radio_busy and 120 < time.time() - self.output_timeout_start_time:
+            logging.warn("It has been two minutes since we got radio output")
+            self.output_timeout_start_time = time.time() # reset
         return 0
 
     def goto_foo(self):
@@ -649,6 +656,7 @@ class Gprs:
         self.response_list = response_list
         self.next_state = next_state
         self.radio_busy = True
+        self.output_timeout_start_time = time.time()
         self.lines_of_response = 0
         self.ser.write(command)
         self.ser.write(b'\r\n')
@@ -811,6 +819,7 @@ class Gprs:
         '''
         self.connected = False
         self.radio_busy = True # this is to get the code to go to the next_state
+        self.output_timeout_start_time = time.time()
         self.next_state = self.state_string_to_int_dict['GPRS_STATE_IP_STATUS']
         self.response_list = [GPRS_RESPONSE_SPONTANEOUS]
         self.response_matches()
