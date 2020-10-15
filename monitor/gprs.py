@@ -346,6 +346,7 @@ class Gprs:
             self.ser.timeout = 1
             newbytes = self.ser.read_until(terminator=b'\r\n')
             self.radio_output += newbytes
+            # should keep the last N values of newbytes for debugging here
             self.output_timeout_start_time = time.time()
             return len(newbytes)
 
@@ -377,7 +378,8 @@ class Gprs:
             self.check_radio_output()
             return False
 
-        if not b'\r\n' in self.radio_output:
+        crlf = self.radio_output.find(b'\r\n')
+        if -1 == crlf:
             # We have bytes, but not a CRLF
             # This happens when we are waiting for a MQTT response
             # It also happens when we timeout on reading from radio (partial response)
@@ -406,6 +408,7 @@ class Gprs:
                     else:
                         logging.error('Gprs.handle_radio_output() was expecting a CONNACK packet')
                         self.goto_foo()
+                        return False
                 else:
                     # try to read more bytes
                     self.check_radio_output()
@@ -424,6 +427,7 @@ class Gprs:
                     else:
                         logging.error('Gprs.handle_radio_output() was expecting a CONNACK packet')
                         self.goto_foo()
+                        return False
                 else:
                     # try to read more bytes
                     self.check_radio_output()
@@ -431,74 +435,89 @@ class Gprs:
             else:
                 self.check_radio_output()
                 return False
+
+        elif crlf == bytelength-2: # self.radio_output has a CRLF at the end of the string
+            return self.handle_line(self.radio_output)
+
+        else: # self.radio_output has a CRLF before the end of the string)
+            # every once in a while, we end up with two lines from the radio
+            # e.g. b'AT+CIICR\r\r\nOK\r\n'
+            # separate out the first line
+            firstline = self.radio_output[0:crlf+2]
+            return self.handle_line(firstline)
+
+        return False # not sure we can get here
+
+    def handle_line(self, line):
+        logging.debug('    Gprs.handle_radio_output() %s - %s %s', self.lines_of_response, self.radio_output, self.response_list)
+        self.lines_of_response += 1
+        if (100 < self.lines_of_response): # anything over 4 or 5 lines is 'stuck'
+            logging.error('We are stuck.')
+            self.goto_foo()
+            return False
+
+        # see if we are in the FLUSH state
+        if (0 < len(self.response_list)
+        and GPRS_RESPONSE_FLUSH == self.response_list[0]):
+                self.response_matches()
+                return True
+        # See if this is exactly one of the expected responses (e.g. 'OK\r\n')
+        elif line in self.METHODS:
+            method = self.METHODS[line]
+            return method['method'](self, method['arg'])
+        # Other parsing of radio output
         else:
-            # self.radio_output has a CRLF (most likely at the end of the string)
-            logging.debug('    Gprs.handle_radio_output() %s - %s %s', self.lines_of_response, self.radio_output, self.response_list)
-            self.lines_of_response += 1
-            if (100 < self.lines_of_response): # anything over 4 or 5 lines is 'stuck'
-                logging.error('We are stuck.')
+            # do regex stuff here
+            if (line.startswith(b'AT+CIPSEND\r')
+            and 0 < len(self.response_list)
+            and GPRS_RESPONSE_ECHO == self.response_list[0]):
+                # remainder of the line is the MQTT packet we sent.  No need to parse it
+                self.response_matches()
+                return True
+            elif (line.startswith(b'+CCLK: "')
+            and 0 < len(self.response_list)
+            and GPRS_RESPONSE_TIME == self.response_list[0]):
+                temp = line[8:].decode(encoding='UTF-8').split(',') # yy/MM/dd,hh:mm:ss+zz"
+                # temp[0] is yy/MM/dd
+                # temp[1] is hh:mm:ss+zz"
+                logging.debug('Time is %s', temp[1][0:-4])
+                self.response_matches()
+                return True
+            elif (line.startswith(b'+CSQ: ')
+            and 0 < len(self.response_list)
+            and GPRS_RESPONSE_SQ == self.response_list[0]):
+                temp = line[6:].decode(encoding='UTF-8').split(',')
+                signal = temp[0]
+                if 1 == len(signal):
+                    self.signal = ord(signal[0]) - ord(b'0')
+                elif 2 == len(signal):
+                    self.signal = (ord(signal[0]) - ord(b'0'))*10 + (ord(signal[1]) - ord(b'0'))
+                else:
+                    logging.error('This is unexpected.  len(signal) is %s', len(signal))
+                    self.signal = 0
+                logging.debug('Signal quality is %d', self.signal)
+                self.response_matches()
+                return True
+            elif line.startswith(b'+CME ERROR: '):
+                errno = int(line[11:].decode(encoding='UTF-8'))
+                return self.method_match_cme_error(errno)
+            elif (0 < len(self.response_list)
+            and GPRS_RESPONSE_IPADDR == self.response_list[0]):
+                temp = line.decode(encoding='UTF-8').split('.') # xxx.xxx.xxx.xxx
+                if 4 == len(temp):
+                    logging.debug('IP Address is %s.%s.%s.%s', temp[0], temp[1], temp[2], temp[3])
+                    self.response_matches()
+                    return True
+                else:
+                    logging.error('Failed to parse line that should have been an IP address: %s', line)
+                    self.goto_foo()
+                    return False
+            else:
+                logging.error('radio output not parsed: %s', line)
                 self.goto_foo()
                 return False
 
-            # see if we are in the FLUSH state
-            if (0 < len(self.response_list)
-            and GPRS_RESPONSE_FLUSH == self.response_list[0]):
-                    self.response_matches()
-                    return True
-            # See if this is exactly one of the expected responses (e.g. 'OK\r\n')
-            elif self.radio_output in self.METHODS:
-                method = self.METHODS[self.radio_output]
-                return method['method'](self, method['arg'])
-            # Other parsing of radio output
-            else:
-                # do regex stuff here
-                if (self.radio_output.startswith(b'AT+CIPSEND\r')
-                and 0 < len(self.response_list)
-                and GPRS_RESPONSE_ECHO == self.response_list[0]):
-                    # remainder of the line is the MQTT packet we sent.  No need to parse it
-                    self.response_matches()
-                    return True
-                elif (self.radio_output.startswith(b'+CCLK: "')
-                and 0 < len(self.response_list)
-                and GPRS_RESPONSE_TIME == self.response_list[0]):
-                    temp = self.radio_output[8:].decode(encoding='UTF-8').split(',') # yy/MM/dd,hh:mm:ss+zz"
-                    # temp[0] is yy/MM/dd
-                    # temp[1] is hh:mm:ss+zz"
-                    logging.debug('Time is %s', temp[1][0:-4])
-                    self.response_matches()
-                    return True
-                elif (self.radio_output.startswith(b'+CSQ: ')
-                and 0 < len(self.response_list)
-                and GPRS_RESPONSE_SQ == self.response_list[0]):
-                    temp = self.radio_output[6:].decode(encoding='UTF-8').split(',')
-                    signal = temp[0]
-                    if 1 == len(signal):
-                        self.signal = ord(signal[0]) - ord(b'0')
-                    elif 2 == len(signal):
-                        self.signal = (ord(signal[0]) - ord(b'0'))*10 + (ord(signal[1]) - ord(b'0'))
-                    else:
-                        logging.error('This is unexpected.  len(signal) is %s', len(signal))
-                        self.signal = 0
-                    logging.debug('Signal quality is %d', self.signal)
-                    self.response_matches()
-                    return True
-                elif self.radio_output.startswith(b'+CME ERROR: '):
-                    errno = int(self.radio_output[11:].decode(encoding='UTF-8'))
-                    return self.method_match_cme_error(errno)
-                elif (0 < len(self.response_list)
-                and GPRS_RESPONSE_IPADDR == self.response_list[0]):
-                    temp = self.radio_output.decode(encoding='UTF-8').split('.') # xxx.xxx.xxx.xxx
-                    if 4 == len(temp):
-                        logging.debug('IP Address is %s.%s.%s.%s', temp[0], temp[1], temp[2], temp[3])
-                        self.response_matches()
-                        return True
-                    else:
-                        logging.error('Failed to parse line that should have been an IP address: %s', self.radio_output)
-                        self.goto_foo()
-                else:
-                    logging.error('radio output not parsed: %s', self.radio_output)
-                    self.goto_foo()
-            return False
+        return False # not sure we can get here
 
     def loop(self):
         '''
