@@ -952,6 +952,7 @@ class Gprs:
         b'STATE: IP STATUS\r\n': {'method': method_match_ipstatus, 'arg': 'GPRS_STATE_CIPSTART'},
         b'STATE: TCP CLOSED\r\n': {'method': method_match_ipstatus, 'arg': 'GPRS_STATE_IPSHUT'},
         b'STATE: PDP DEACT\r\n': {'method': method_match_ipstatus, 'arg': 'GPRS_STATE_IPSHUT'},
+        b'STATE: CONNECT OK\r\n': {'method': method_match_ipstatus, 'arg': 'GPRS_STATE_IPSHUT'},
         # these are transient IP STATUS responses
         b'STATE: IP CONFIG\r\n': {'method': method_match_ipconfig, 'arg': 3},
         b'STATE: TCP CONNECTING\r\n': {'method': method_match_ipconfig, 'arg': 10},
