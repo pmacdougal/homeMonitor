@@ -4,7 +4,7 @@ import time
 
 
 class Handler:
-    NAME = "Handler"
+    NAME = 'Handler'
 
     def __init__(self, topic, metering_queue, messages_per_hour, evaluate_topic):
         self.topic = topic
@@ -21,17 +21,17 @@ class Handler:
         self.list_of_keys.append({'key': key, 'topic': topic, 'clamp': clamp})
 
     def publish(self, topic, message, *, filter=True):
-        logging.debug("Handler: %s publish %s to topic %s", self.NAME, message, topic)
+        logging.debug('Handler: %s publish %s to topic %s', self.NAME, message, topic)
         if not filter:
-            self.metering_queue.append({"topic": topic, "message": message, "filter": False})
+            self.metering_queue.append({'topic': topic, 'message': message, 'filter': False})
         else:
-            self.metering_queue.append({"topic": topic, "message": message})
+            self.metering_queue.append({'topic': topic, 'message': message})
 
     def dump_info(self):
-        logging.info("%s is handling %s", self.NAME, self.topic)
+        logging.info('%s is handling %s', self.NAME, self.topic)
 
-    def handle_json(self, json_string):        
-        logging.debug("%s: got message %s", self.NAME, json_string)
+    def handle_json(self, json_string):
+        logging.debug('%s: got message %s', self.NAME, json_string)
         self.message_count += 1
 
     def evaluate(self):
@@ -44,7 +44,7 @@ class Handler:
         hourly_rate = 60*60*count // delta
 
         # for now
-        self.publish(self.evaluate_topic, f"{self.NAME} {count}")
+        self.publish(self.evaluate_topic, f'{self.NAME} {count}')
 
         if 0 == self.messages_per_hour: # e.g. Ups
             if 0 < hourly_rate:
@@ -65,7 +65,7 @@ class Handler:
                 pass # normal range
 
 class Generic(Handler):
-    NAME = "Generic"
+    NAME = 'Generic'
 
     def handle_json(self, json_string):
         super().handle_json(json_string)
@@ -75,7 +75,7 @@ class Generic(Handler):
 
 
 class GenericEnergy(Handler):
-    NAME = "Generic"
+    NAME = 'Generic'
 
     def handle_json(self, json_string):
         super().handle_json(json_string)
@@ -86,10 +86,10 @@ class GenericEnergy(Handler):
             self.publish(k['topic'], data['ENERGY'][k['key']])
 
 class GenericString(Handler):
-    NAME = "Generic"
+    NAME = 'Generic'
 
     def handle_json(self, message):
         super().handle_json(message)
         for k in self.list_of_keys:
-            self.publish(k['topic'], str(message, "utf-8"))
+            self.publish(k['topic'], str(message, 'utf-8'))
 

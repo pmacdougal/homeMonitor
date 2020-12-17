@@ -6,11 +6,11 @@ def main():
     if True:
         home = Home()
         hostname = gethostname()
-        home.run(f"start Home from {hostname}", "h.mqtt", "192.168.2.30")
+        home.run(f'start Home from {hostname}', 'h.mqtt', '192.168.2.30')
     else:
         barn = Barn()
         hostname = gethostname()
-        barn.run(f"start Barn from {hostname}", "s.mqtt", "192.168.2.32")
+        barn.run(f'start Barn from {hostname}', 's.mqtt', '192.168.2.32')
 
 # This is not a module, so run the main routine when executed
 if __name__ == '__main__':

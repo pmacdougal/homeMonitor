@@ -24,7 +24,7 @@ class Monitor:
 
     def run(self, msg, topic, mqtt_ip):
         metering_queue = []
-        metering_queue.append({"topic": topic, "message": msg})
+        metering_queue.append({'topic': topic, 'message': msg})
 
         try:
             aio = Adafruit(username, password, self.access)
@@ -44,12 +44,13 @@ class Monitor:
 
                     if len(metering_queue):
                         #if (isinstance(metering_queue[0], dict)
-                        #and "topic" in metering_queue[0]
-                        #and "message" in metering_queue[0]):
-                        t = metering_queue[0].get("topic", "")
-                        m = metering_queue[0].get("message", "")
-                        f = metering_queue[0].get("filter", True)
+                        #and 'topic' in metering_queue[0]
+                        #and 'message' in metering_queue[0]):
+                        t = metering_queue[0].get('topic', '')
+                        m = metering_queue[0].get('message', '')
+                        f = metering_queue[0].get('filter', True)
                         if 0 == aio.publish(t, m, filter=f): # if successful handling of this message
+                            logging.info('Monitor.run() popping metering_queue for %s', t)
                             metering_queue.pop(0)
                     else:
                         aio.loop()
@@ -109,7 +110,7 @@ class Home(Monitor):
 
     def configure(self, mqtt_monitor, metering_queue):
         '''
-        configure each of the local MQTT topics being monitored and the AdFruit Topics being published
+        configure each of the local MQTT topics being monitored and the AdaFruit Topics being published
         '''
         handler = Generic('tele/99e934/SENSOR', metering_queue, 240, 'h.mph')
         handler.NAME = 'Garage'
@@ -135,6 +136,7 @@ class Home(Monitor):
         handler = Generic('tele/9215de/SENSOR', metering_queue, 240, 'h.mph')
         handler.NAME = 'CatFeeder'
         handler.setup('h.cf', 'CFCount')
+        mqtt_monitor.topic(handler)
 
         handler = GenericEnergy('tele/sonoffP/SENSOR', metering_queue, 240, 'h.mph')
         handler.NAME = 'Laser'
@@ -155,10 +157,12 @@ class Home(Monitor):
         handler = GenericString('ups', metering_queue, 0, 'h.mph')
         handler.NAME = 'Ups'
         handler.setup('h.ups', 'unused')
+        mqtt_monitor.topic(handler)
 
         handler = GenericString('tele/0dd6ce/wce', metering_queue, 0, 'h.mph')
         handler.NAME = 'Status'
         handler.setup('h.wce', 'unused')
+        mqtt_monitor.topic(handler)
 
         # tele/920e8c/SENSOR (esp_now_slave) {"S0":332,"S1":0,"S2":0}
         # tele/1dc700/SENSOR {"Sketch":"tsunamiLight v1.0","SQ":-78,"minSQ":-90,"maxSQ":-71}
