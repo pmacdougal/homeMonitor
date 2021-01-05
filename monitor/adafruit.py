@@ -100,7 +100,7 @@ class Adafruit:
                             if self.gprs.successfully_published:
                                 # previous message was published (we got SEND OK)
                                 self.gprs.successfully_published = False
-                                logging.info('Adafruit: publish: GPRS indicates message was sent to Adafruit')
+                                logging.info('Adafruit: publish: GPRS indicates message %s was sent to Adafruit', self.gprs.lasttopic)
                                 
                                 return 0 # casues message to be popped
                             else:

@@ -50,7 +50,7 @@ class Monitor:
                         m = metering_queue[0].get('message', '')
                         f = metering_queue[0].get('filter', True)
                         if 0 == aio.publish(t, m, filter=f): # if successful handling of this message
-                            logging.info('Monitor.run() popping metering_queue for %s', t)
+                            logging.debug('Monitor.run() popping metering_queue for %s', t)
                             metering_queue.pop(0)
                     else:
                         aio.loop()

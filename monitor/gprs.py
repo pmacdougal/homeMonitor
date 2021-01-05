@@ -305,6 +305,7 @@ class Gprs:
         self.delay_duration = 0
         self.successfully_published = False
         self.output_timeout_start_time = 0
+        self.lasttopic = ""
 
         self.state_list = [None]*len(self.state_string_to_int_dict)
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_CALL_READY']]  = GprsState(self, b'AT+CCALR?',    [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_CALR, GPRS_RESPONSE_OK], self.state_string_to_int_dict['GPRS_STATE_CALL_READY'], prefix='loop_cr')
@@ -986,6 +987,7 @@ class Gprs:
         if not self.connected:
             raise NotImplementedError
         packet = self.build_message_packet(topic, message)
+        self.lasttopic = topic
         self.successfully_published = False
         self.send_command(b'AT+CIPSEND', packet, [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_SENDOK], self.state_string_to_int_dict['GPRS_STATE_PUBLISH'])
 
