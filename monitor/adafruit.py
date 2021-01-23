@@ -3,6 +3,7 @@ import time
 import datetime
 from Adafruit_IO import Client, MQTTClient, RequestError, ThrottlingError, AdafruitIOError, Data
 from .gprs import Gprs
+from .bg96 import Bg96
 
 '''
 ToDo:
@@ -30,6 +31,8 @@ class Adafruit:
                 logging.info('Adafruit: Connection timed out')
             else:
                 self.aio.loop_background()
+        elif 'lte' == self.access:
+            self.gprs = Bg96('/dev/ttyS0')
         elif 'gprs' == self.access:
             self.gprs = Gprs('/dev/ttyS0')
         else:
@@ -52,6 +55,9 @@ class Adafruit:
             time.sleep(1)
         elif 'mqtt' == self.access:
             time.sleep(1)
+        elif 'lte' == self.access:
+            # let radio process serial data
+            self.gprs.loop()
         elif 'gprs' == self.access:
             # let radio process serial data
             self.gprs.loop()
@@ -92,7 +98,7 @@ class Adafruit:
                         else:
                             logging.error('Adafruit: publish: Not connected error')
                             return 1 # unsuccessful processing of this message
-                    elif 'gprs' == self.access:
+                    elif 'lte' == self.access or 'gprs' == self.access:
                         # allow radio to process serial data
                         self.gprs.loop()
                         # see if radio is ready for data
