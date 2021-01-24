@@ -34,7 +34,11 @@ GPRS_RESPONSE_TIME = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
 GPRS_RESPONSE_MQTT = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
 GPRS_RESPONSE_FLUSH = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
 GPRS_RESPONSE_CONNECTFAIL = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
-
+GPRS_RESPONSE_QMTCLOSE = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
+GPRS_RESPONSE_QMTOPEN = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
+GPRS_RESPONSE_QMTCONN = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
+GPRS_RESPONSE_QMTPUB = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
+GPRS_RESPONSE_PACKET = GPRS_RESPONSE_MAX; GPRS_RESPONSE_MAX += 1
 
 class xxx(Exception):
     pass
@@ -101,7 +105,7 @@ class GprsState:
         self.loop_count += 1
         if self.radio.registered:
             self.radio.previous_state = self.radio.state
-            self.radio.state = self.radio.state_string_to_int_dict['GPRS_STATE_CLK']
+            self.radio.state = self.radio.state_string_to_int_dict['GPRS_STATE_CSQ']
             self.radio.signal = 0
             self.loop_count = 0
             return 1
@@ -120,7 +124,7 @@ class GprsState:
         '''
         self.loop_count += 1
         if 4 < self.radio.signal:
-            self.radio.state = self.radio.state_string_to_int_dict['GPRS_STATE_IPSHUT']
+            self.radio.state = self.radio.state_string_to_int_dict['GPRS_STATE_MQTTOPEN']
             self.loop_count = 0
             return 1
         elif False and 20 == self.loop_count:
@@ -159,6 +163,8 @@ class GprsState:
             self.radio.publish('s.sq', self.radio.signal)
             self.radio.previous_state = self.radio.state
             self.radio.state = self.radio.next_state
+        else:
+            logging.info('method_publish_sq(): Radio is not ready')
         return 1
 
     def method_foo(self):
@@ -180,10 +186,10 @@ class GprsState:
         check if the radio is powered on
         open the serial port
         '''
-        if not RPi.GPIO.input(31):
-            # Pull the power pin low for three seconds
-            RPi.GPIO.output(7, RPi.GPIO.LOW)
-            logging.info('The radio is OFF.  Pulling pwrkey low... ')
+        if RPi.GPIO.input(self.radio.STATUS):
+            # Pull the power pin high for three seconds
+            RPi.GPIO.output(self.radio.BG96_POWERKEY, RPi.GPIO.HIGH)
+            logging.info('The radio is OFF.  Pulling pwrkey high... ')
             self.radio.start_time = self.radio.loop_time
             self.radio.previous_state = self.radio.state
             self.radio.state = self.radio.state_string_to_int_dict['GPRS_STATE_POWERING_UP']
@@ -203,7 +209,7 @@ class GprsState:
         always returns 1, so that we do not do a radio.send_command
         '''
         if 3 <= (self.radio.loop_time - self.radio.start_time):
-            RPi.GPIO.output(7, RPi.GPIO.HIGH)
+            RPi.GPIO.output(self.radio.BG96_POWERKEY, RPi.GPIO.LOW)
             logging.info('Releasing pwrkey')
             self.radio.previous_state = self.radio.state
             self.radio.state = self.radio.state_string_to_int_dict['GPRS_STATE_INITIAL']
@@ -237,7 +243,8 @@ class GprsState:
          }
 
     def run(self):
-        if 'GPRS_STATE_PUBLISH' != self.radio.state_string_list[self.radio.state]:
+        if ('GPRS_STATE_PUBLISH' != self.radio.state_string_list[self.radio.state]
+        and 'GPRS_STATE_POWERING_UP' != self.radio.state_string_list[self.radio.state]):
             logging.info('### %s %s %s', self.radio.state_string_list[self.radio.state], self.prefix, self.suffix)
         ret1 = self.METHODS[self.prefix](self)
         ret2 = 0
@@ -258,12 +265,26 @@ class GprsState:
         return ret1, ret2
 
 
-class Gprs:
+class Bg96:
     '''
-    Class for GPRS radio HAT
+    Class for Raspberry Pi Cellular IoT HAT – LTE-M & NB-IoT & eGPRS
     '''
+    # Broadcom Pin numbering
+    #USER_BUTTON = 22
+    #USER_LED = 27
+    #BG96_ENABLE = 17
+    #BG96_POWERKEY = 24
+    #STATUS = 23
+
+    # Board Pin numbering
+    USER_BUTTON = 15
+    USER_LED = 13
+    BG96_ENABLE = 11
+    BG96_POWERKEY = 18
+    STATUS = 16
+
     def __init__(self, port):
-        logging.debug('Constructing Gprs object')
+        logging.debug('Constructing Bg96 object')
         self.port = port
         self.radio_busy = False
         self.ser = None
@@ -295,6 +316,8 @@ class Gprs:
             'GPRS_STATE_KEEPALIVE',
             'GPRS_STATE_MEE',
             'GPRS_STATE_MQTTCONNECT',
+            'GPRS_STATE_MQTTOPEN',
+            'GPRS_STATE_MQTTSHUT',
             'GPRS_STATE_POWERING_UP',
             'GPRS_STATE_PUBLISH',
             'GPRS_STATE_REGISTERED',
@@ -311,35 +334,50 @@ class Gprs:
         self.lasttopic = ""
 
         self.state_list = [None]*len(self.state_string_to_int_dict)
+        self.state_list[self.state_string_to_int_dict['GPRS_STATE_INITIAL']]     = GprsState(self, b'AT',           [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK], self.state_string_to_int_dict['GPRS_STATE_REGISTERED'], prefix='power_up')
+        self.state_list[self.state_string_to_int_dict['GPRS_STATE_POWERING_UP']] = GprsState(self, b'',             [], self.state_string_to_int_dict['GPRS_STATE_POWERING_UP'], prefix='pu_delay')
+        self.state_list[self.state_string_to_int_dict['GPRS_STATE_REGISTERED']]  = GprsState(self, b'AT+CREG?',     [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_REG, GPRS_RESPONSE_OK], self.state_string_to_int_dict['GPRS_STATE_REGISTERED'], prefix='loop_reg', delay=2)
+        self.state_list[self.state_string_to_int_dict['GPRS_STATE_CSQ']]         = GprsState(self, b'AT+CSQ',       [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_SQ, GPRS_RESPONSE_OK], self.state_string_to_int_dict['GPRS_STATE_CSQ'], prefix='loop_sq')
+        self.state_list[self.state_string_to_int_dict['GPRS_STATE_MQTTSHUT']]    = GprsState(self, b'AT+QMTCLOSE=1',[GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK, GPRS_RESPONSE_QMTCLOSE], self.state_string_to_int_dict['GPRS_STATE_MQTTOPEN'])
+        self.state_list[self.state_string_to_int_dict['GPRS_STATE_MQTTOPEN']]    = GprsState(self, b'AT+QMTOPEN=1,"io.adafruit.com",1883',   [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK, GPRS_RESPONSE_QMTOPEN], self.state_string_to_int_dict['GPRS_STATE_MQTTCONNECT'])
+        self.state_list[self.state_string_to_int_dict['GPRS_STATE_MQTTCONNECT']] = GprsState(self, b'AT+QMTCONN=1,"bg96","'+username.encode(encoding='UTF-8')+b'","'+password.encode(encoding='UTF-8')+b'"',   [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK, GPRS_RESPONSE_QMTCONN], self.state_string_to_int_dict['GPRS_STATE_PUBLISH'])
+        self.state_list[self.state_string_to_int_dict['GPRS_STATE_PUBLISH']]     = GprsState(self, b'AT+CSQ',       [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_SQ, GPRS_RESPONSE_OK], self.state_string_to_int_dict['GPRS_STATE_KEEPALIVE'], prefix='keep_alive')
+        self.state_list[self.state_string_to_int_dict['GPRS_STATE_KEEPALIVE']]   = GprsState(self, b'',             [], self.state_string_to_int_dict['GPRS_STATE_FOO'], prefix='publish_sq')
+
+
+
+
+
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_CALL_READY']]  = GprsState(self, b'AT+CCALR?',    [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_CALR, GPRS_RESPONSE_OK], self.state_string_to_int_dict['GPRS_STATE_CALL_READY'], prefix='loop_cr')
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_CIFSR']]       = GprsState(self, b'AT+CIFSR',     [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_IPADDR], self.state_string_to_int_dict['GPRS_STATE_IP_STATUS'], delay=5)
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_CIICR']]       = GprsState(self, b'AT+CIICR',     [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK], self.state_string_to_int_dict['GPRS_STATE_IP_STATUS'])
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_CIPSTART']]    = GprsState(self, b'AT+CIPSTART="TCP","io.adafruit.com","1883"', [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK, GPRS_RESPONSE_CONNECTOK], self.state_string_to_int_dict['GPRS_STATE_MQTTCONNECT'])
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_CLK']]         = GprsState(self, b'AT+CCLK?',     [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_TIME, GPRS_RESPONSE_OK], self.state_string_to_int_dict['GPRS_STATE_CSQ'])
-        self.state_list[self.state_string_to_int_dict['GPRS_STATE_CSQ']]         = GprsState(self, b'AT+CSQ',       [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_SQ, GPRS_RESPONSE_OK], self.state_string_to_int_dict['GPRS_STATE_CSQ'], prefix='loop_sq')
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_CSTT']]        = GprsState(self, b'AT+CSTT="m2mglobal"', [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK], self.state_string_to_int_dict['GPRS_STATE_IP_STATUS'])
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_DELAY']]       = GprsState(self, b'',             [], self.state_string_to_int_dict['GPRS_STATE_FOO'], prefix='state_delay')
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_DISABLE_GPS']] = GprsState(self, b'AT+CGNSTST=0', [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK], self.state_string_to_int_dict['GPRS_STATE_SECOND_AT'])
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_FLUSH']]       = GprsState(self, b'AT',           [GPRS_RESPONSE_FLUSH, GPRS_RESPONSE_OK], self.state_string_to_int_dict['GPRS_STATE_IP_STATUS'])
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_FOO']]         = GprsState(self, b'',             [], self.state_string_to_int_dict['GPRS_STATE_FOO'], prefix='state_foo')
-        self.state_list[self.state_string_to_int_dict['GPRS_STATE_INITIAL']]     = GprsState(self, b'AT',           [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK], self.state_string_to_int_dict['GPRS_STATE_DISABLE_GPS'], prefix='power_up')
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_IP_STATUS']]   = GprsState(self, b'AT+CIPSTATUS', [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK, GPRS_RESPONSE_IPSTATUS], self.state_string_to_int_dict['GPRS_STATE_IP_STATUS'])
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_IPSHUT']]      = GprsState(self, b'AT+CIPSHUT',   [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_SHUTOK], self.state_string_to_int_dict['GPRS_STATE_IP_STATUS'])
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_IPSPRT']]      = GprsState(self, b'AT+CIPSPRT=0', [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK], self.state_string_to_int_dict['GPRS_STATE_CALL_READY'], suffix='clear_cr')
-        self.state_list[self.state_string_to_int_dict['GPRS_STATE_KEEPALIVE']]   = GprsState(self, b'',             [], self.state_string_to_int_dict['GPRS_STATE_FOO'], prefix='publish_sq')
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_MEE']]         = GprsState(self, b'AT+CMEE=1',    [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK], self.state_string_to_int_dict['GPRS_STATE_IPSPRT'])
-        self.state_list[self.state_string_to_int_dict['GPRS_STATE_MQTTCONNECT']] = GprsState(self, b'AT+CIPSEND',   [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_SENDOK, GPRS_RESPONSE_CONNACK], self.state_string_to_int_dict['GPRS_STATE_PUBLISH'], prefix='build_connect_packet')
-        self.state_list[self.state_string_to_int_dict['GPRS_STATE_POWERING_UP']] = GprsState(self, b'',             [], self.state_string_to_int_dict['GPRS_STATE_POWERING_UP'], prefix='pu_delay')
-        self.state_list[self.state_string_to_int_dict['GPRS_STATE_PUBLISH']]     = GprsState(self, b'AT+CSQ',       [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_SQ, GPRS_RESPONSE_OK], self.state_string_to_int_dict['GPRS_STATE_KEEPALIVE'], prefix='keep_alive')
-        self.state_list[self.state_string_to_int_dict['GPRS_STATE_REGISTERED']]  = GprsState(self, b'AT+CREG?',     [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_REG, GPRS_RESPONSE_OK], self.state_string_to_int_dict['GPRS_STATE_REGISTERED'], prefix='loop_reg', delay=2)
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_SECOND_AT']]   = GprsState(self, b'AT',           [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK], self.state_string_to_int_dict['GPRS_STATE_MEE'])
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_UNDEFINED']]   = GprsState(self, b'',             [], self.state_string_to_int_dict['GPRS_STATE_FOO'])
         #self.state_list[self.state_string_to_int_dict[GPRS_STATE_xxx]]          = GprsState(self, b'AT+xxx',       [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK], self.state_string_to_int_dict['GPRS_STATE_IP_xxx'])
+
         #set GPIO numbering mode for the program
         RPi.GPIO.setmode(RPi.GPIO.BOARD)
         RPi.GPIO.setwarnings(False)
-        RPi.GPIO.setup(31, RPi.GPIO.IN)
-        RPi.GPIO.setup(7, RPi.GPIO.OUT)
+        RPi.GPIO.setup(self.BG96_ENABLE, RPi.GPIO.OUT)
+        RPi.GPIO.setup(self.BG96_POWERKEY, RPi.GPIO.OUT)
+        RPi.GPIO.setup(self.STATUS, RPi.GPIO.IN)
+        RPi.GPIO.setup(self.USER_BUTTON, RPi.GPIO.IN)
+        RPi.GPIO.setup(self.USER_LED, RPi.GPIO.OUT)
+
+    def __del__(self):
+        RPi.GPIO.cleanup()
+
 
     def check_radio_output(self):
         '''
@@ -410,7 +448,7 @@ class Gprs:
                         return True
 
                     else:
-                        logging.error('Gprs.handle_radio_output() was expecting a CONNACK packet')
+                        logging.error('Bg96.handle_radio_output() was expecting a CONNACK packet')
                         self.goto_foo()
                         return False
                 else:
@@ -429,7 +467,7 @@ class Gprs:
                         self.response_list.pop(0)
                         return True
                     else:
-                        logging.error('Gprs.handle_radio_output() was expecting a CONNACK packet')
+                        logging.error('Bg96.handle_radio_output() was expecting a CONNACK packet')
                         self.goto_foo()
                         return False
                 else:
@@ -453,7 +491,7 @@ class Gprs:
         return False # not sure we can get here
 
     def handle_line(self, line):
-        logging.debug('    Gprs.handle_radio_output() %s - %s %s', self.lines_of_response, self.radio_output, self.response_list)
+        logging.debug('    Bg96.handle_radio_output() %s - %s %s', self.lines_of_response, self.radio_output, self.response_list)
         self.lines_of_response += 1
         if (100 < self.lines_of_response): # anything over 4 or 5 lines is 'stuck'
             logging.error('We are stuck.')
@@ -472,7 +510,18 @@ class Gprs:
         # Other parsing of radio output
         else:
             # do regex stuff here
-            if (line.startswith(b'AT+CIPSEND\r')
+            if (line.startswith(b'AT+QMTPUB=1,0,0,0,')
+            and 0 < len(self.response_list)
+            and GPRS_RESPONSE_ECHO == self.response_list[0]):
+                # remainder of the line is the MQTT packet we sent.  No need to parse it
+                self.response_matches()
+                return True
+            elif (line.startswith(b'>')
+            and 0 < len(self.response_list)
+            and GPRS_RESPONSE_PACKET == self.response_list[0]):
+                self.response_matches()
+                return True
+            elif (line.startswith(b'AT+CIPSEND\r')
             and 0 < len(self.response_list)
             and GPRS_RESPONSE_ECHO == self.response_list[0]):
                 # remainder of the line is the MQTT packet we sent.  No need to parse it
@@ -635,29 +684,11 @@ class Gprs:
 
     def build_message_packet(self, topic, message):
         '''
-        build an MQTT publish packet
+        put the message into a CTRL-Z terminated bytearray
         '''
         # publish packet
         packet = bytearray(0)
-        packet.append(0x30) # MQTT_CTRL_PUBLISH << 4
-        packet.append(0) # length for now is zero
-        # Topic name
-        fulltopic = b''
-        fulltopic += username.encode(encoding='UTF-8')
-        fulltopic += b'/feeds/'
-        fulltopic += topic.encode(encoding='UTF-8')
-        packet.append(0) # length for topic name MSB
-        packet.append(len(fulltopic)) # length for topic name LSB
-        packet += fulltopic
-        # payload
-        # no length encoded here
         packet += ascii(message).encode(encoding='UTF-8')
-        # avoid "bad" length packets (28 and 29 are "bad")
-        if 28 == len(packet):
-            packet += b'  '
-        if 29 == len(packet):
-            packet += b' '
-        packet[1] = len(packet)-2 # fill in the length
         packet.append(26) # not really part of the packet
         return packet
 
@@ -674,7 +705,7 @@ class Gprs:
             now = time.time()
         self.command_start_time = now
 
-        logging.debug('Gprs.send_command(): Sending command %s', command)
+        logging.debug('Bg96.send_command(): Sending command %s', command)
         self.command = command
         self.response_list = response_list
         self.next_state = next_state
@@ -836,6 +867,40 @@ class Gprs:
         self.response_mismatches(token)
         return False
 
+    def method_match_open(self, arg):
+        '''
+        handle MQTT OPEN response
+        '''
+        if (0 == arg
+        and 0 < len(self.response_list)
+        and GPRS_RESPONSE_QMTOPEN == self.response_list[0]):
+            self.connected = True
+            self.response_matches()
+            return True
+        elif (2 == arg
+        and 0 < len(self.response_list)
+        and GPRS_RESPONSE_QMTOPEN == self.response_list[0]):
+            # need to shut the connection (or just use it?)
+            self.next_state = self.state_string_to_int_dict['GPRS_STATE_MQTTSHUT']
+            self.response_matches()
+            logging.error('method_match_open() sees that the MQTT identifier is occupied')
+            return True
+        else:
+            logging.error('method_match_open() called with non matching response token %d rather than the expected %d', GPRS_RESPONSE_QMTOPEN, self.response_list[0])
+        return False
+
+    def method_match_urc(self, arg):
+        '''
+        handle getting a spontaneous Unsolicited Result Code (URC)
+        +QMTSTAT: 1,<arg>
+        '''
+        if 1 == arg: # Connection is closed or reset by peer
+            self.next_state = self.state_string_to_int_dict['GPRS_STATE_MQTTOPEN']
+            self.response_list = [GPRS_RESPONSE_SPONTANEOUS]
+            self.response_matches()
+            return True
+
+
     def method_match_closed(self, arg):
         '''
         handle getting a spontaneous 'CLOSED\r\n'
@@ -949,6 +1014,9 @@ class Gprs:
         b'AT+CIICR\r\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_ECHO},
         b'AT+CIFSR\r\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_ECHO},
         b'AT+CIPSTART="TCP","io.adafruit.com","1883"\r\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_ECHO},
+        b'AT+QMTCLOSE=1\r\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_ECHO},
+        b'AT+QMTOPEN=1,"io.adafruit.com",1883\r\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_ECHO},
+        b'AT+QMTCONN=1,"bg96","'+username.encode(encoding='UTF-8')+b'","'+password.encode(encoding='UTF-8')+b'"\r\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_ECHO},
         # these are IP STATUS responses
         b'STATE: IP INITIAL\r\n': {'method': method_match_ipstatus, 'arg': 'GPRS_STATE_CSTT'},
         b'STATE: IP START\r\n': {'method': method_match_ipstatus, 'arg': 'GPRS_STATE_CIICR'},
@@ -977,6 +1045,12 @@ class Gprs:
         b'+CREG: 0,1\r\n': {'method': method_match_creg, 'arg': True},
         b'+CREG: 0,2\r\n': {'method': method_match_creg, 'arg': False},
         b'+CREG: 0,5\r\n': {'method': method_match_creg, 'arg': True},
+        b'+QMTCLOSE: 1,0\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_QMTCLOSE},
+        b'+QMTOPEN: 1,0\r\n': {'method': method_match_open, 'arg': 0},
+        b'+QMTOPEN: 1,2\r\n': {'method': method_match_open, 'arg': 2},
+        b'+QMTCONN: 1,0,0\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_QMTCONN},
+        b'+QMTPUB: 1,0,0\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_QMTPUB},
+        b'+QMTSTAT: 1,1\r\n': {'method': method_match_urc, 'arg': 1}
     }
 
     def publish(self, topic, message):
@@ -984,7 +1058,7 @@ class Gprs:
         publish a message to an AdaFruit.IO topic by sending a packet out via the radio
         Note that this just starts the communication
         '''
-        logging.debug('Gprs.publish() to %s', topic)
+        logging.debug('Bg96.publish() to %s', topic)
         if self.radio_busy:
             raise NotImplementedError
         if not self.connected:
@@ -992,5 +1066,10 @@ class Gprs:
         packet = self.build_message_packet(topic, message)
         self.lasttopic = topic
         self.successfully_published = False
-        self.send_command(b'AT+CIPSEND', packet, [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_SENDOK], self.state_string_to_int_dict['GPRS_STATE_PUBLISH'])
+        self.send_command(b'AT+QMTPUB=1,0,0,0,"'
+            +username.encode(encoding='UTF-8')
+            +b'/feeds/'
+            +topic.encode(encoding='UTF-8')
+            +b'"', packet, [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_PACKET, GPRS_RESPONSE_OK, GPRS_RESPONSE_QMTPUB],
+             self.state_string_to_int_dict['GPRS_STATE_PUBLISH'])
 

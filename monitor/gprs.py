@@ -352,8 +352,8 @@ class Gprs:
             return len(newbytes)
 
         # timeout
-        if self.radio_busy and 120 < time.time() - self.output_timeout_start_time:
-            logging.warn("It has been two minutes since we got radio output")
+        if self.radio_busy and 300 < time.time() - self.output_timeout_start_time:
+            logging.warn("It has been five minutes since we got radio output")
             self.output_timeout_start_time = time.time() # reset
         return 0
 

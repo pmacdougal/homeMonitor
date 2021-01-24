@@ -3,7 +3,7 @@ from socket import gethostname
 from monitor.monitor import Home, Barn
 
 def main():
-    if True:
+    if False:
         home = Home()
         hostname = gethostname()
         home.run(f'start Home from {hostname}', 'h.mqtt', '192.168.2.30')
