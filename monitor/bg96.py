@@ -604,6 +604,11 @@ class Bg96:
             self.response_list = [GPRS_RESPONSE_SPONTANEOUS]
             self.response_matches()
             return True
+        elif 2 == arg: # pdp deactivate
+            self.next_state = self.state_string_to_int_dict['GPRS_STATE_MQTTOPEN']
+            self.response_list = [GPRS_RESPONSE_SPONTANEOUS]
+            self.response_matches()
+            return True
         else:
             logging.error('method_match_urc() called with unknown arg: %d', arg)
         return False
@@ -624,6 +629,16 @@ class Bg96:
         '''
         handle ERROR parsing
         '''
+        if (0 < len(self.response_list)
+        and GPRS_RESPONSE_QMTPUB == self.response_list[len(self.response_list)-1]):
+            # PUB failed
+            logging.error('method_match_error() called after QMTPUB failed')
+            self.next_state = self.state_string_to_int_dict['GPRS_STATE_MQTTOPEN']
+            self.response_list = [GPRS_RESPONSE_SPONTANEOUS]
+            self.response_matches()
+            return True
+
+        
         return self.method_match_goto_foo(GPRS_RESPONSE_ERROR)
 
     def method_match_blank(self, token):
@@ -661,7 +676,8 @@ class Bg96:
         b'+QMTOPEN: 1,2\r\n': {'method': method_match_open, 'arg': 2},
         b'+QMTCONN: 1,0,0\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_QMTCONN},
         b'+QMTPUB: 1,0,0\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_QMTPUB},
-        b'+QMTSTAT: 1,1\r\n': {'method': method_match_urc, 'arg': 1}
+        b'+QMTSTAT: 1,1\r\n': {'method': method_match_urc, 'arg': 1},
+        b'+QIURC: "pdpdeact",1\r\n': {'method': method_match_urc, 'arg': 2}
     }
 
     def publish(self, topic, message):
