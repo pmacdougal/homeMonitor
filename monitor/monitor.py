@@ -114,7 +114,6 @@ class Barn(Monitor):
         handler.setup('rriba.current', 'Current')
         handler.setup('rriba.speed', 'Speed')
         mqtt_monitor.topic(handler)
-        )
 
 
 class Home(Monitor):
