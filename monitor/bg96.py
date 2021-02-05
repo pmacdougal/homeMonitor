@@ -273,6 +273,7 @@ class Bg96:
         self.start_delay_time = 0
         self.delay_duration = 0
         self.successfully_published = False
+        self.radio_error = False
         self.output_timeout_start_time = 0
         self.lasttopic = ""
 
@@ -568,6 +569,7 @@ class Bg96:
         # there may be an MQTT packet echoed from the radio here.  We need to flush that
         self.response_list = [GPRS_RESPONSE_SPONTANEOUS]
         self.next_state = self.state_string_to_int_dict['GPRS_STATE_FLUSH']
+        self.radio_error = True
         self.response_matches()
         return True
 
@@ -620,6 +622,7 @@ class Bg96:
         elif 2 == arg: # pdp deactivate
             self.next_state = self.state_string_to_int_dict['GPRS_STATE_MQTTOPEN']
             self.response_list = [GPRS_RESPONSE_SPONTANEOUS]
+            self.radio_error = True
             self.response_matches()
             return True
         else:
@@ -706,6 +709,7 @@ class Bg96:
         packet = self.build_message_packet(topic, message)
         self.lasttopic = topic
         self.successfully_published = False
+        self.radio_error = False
         self.send_command(b'AT+QMTPUB=1,0,0,0,"'
             + username.encode(encoding='UTF-8')
             + b'/feeds/'

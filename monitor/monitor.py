@@ -45,13 +45,30 @@ class Monitor:
                     if len(metering_queue):
                         #if (isinstance(metering_queue[0], dict)
                         #and 'topic' in metering_queue[0]
-                        #and 'message' in metering_queue[0]):
+                        #and 'message' in metering_queue[0]:
                         t = metering_queue[0].get('topic', '')
                         m = metering_queue[0].get('message', '')
+                        s = metering_queue[0].get('state', Adafruit.INITIAL)
                         f = metering_queue[0].get('filter', True)
-                        if 0 == aio.publish(t, m, filter=f): # if successful handling of this message
-                            logging.debug('Monitor.run() popping metering_queue for %s', t)
+                        newstate = aio.publish(t, m, s, f)
+                        if Adafruit.PUBLISHED == newstate:
+                            logging.debug('Monitor.run() popping metering_queue entry %s', t)
                             metering_queue.pop(0)
+                        elif Adafruit.INFLIGHT == newstate:
+                            logging.debug('Monitor.run() updating metering_queue[0] to state INFLIGHT')
+                            metering_queue[0]['state'] = newstate
+                        elif Adafruit.ERROR == newstate:
+                            # abandon this entry
+                            logging.debug('Monitor.run() ERROR discarding metering_queue entry %s', t)
+                            metering_queue.pop(0)
+                        elif Adafruit.INITIAL == newstate:
+                            # this is wierd... I guess we do nothing and let it try again
+                            pass
+                        else:
+                            # this should never happen.  It means I am missing a case
+                            logging.debug('Monitor.run() updating metering_queue[0] to state %d', newstate)
+                            metering_queue[0]['state'] = newstate
+                            
                     else:
                         aio.loop()
                 except Exception as e:
@@ -103,16 +120,16 @@ class Barn(Monitor):
         # tele/921601/TRIP {"GCBMS":1.0,"Sketch":"ESP GCBMS coprocessor v1.0","Duration":7,"Odometer":0,"Current":0,"Speed":0,"b0":5231,"B0":5497,"b1":0,"B1":0,"b2":0,"B2":0,"b3":0,"B3":0,"b4":0,"B4":0,"b5":0,"B5":0,"StopTime":159199}
         handler = Generic('tele/921601/TRIP', metering_queue, 0, 's.mph')
         handler.NAME = 'Rriba'
-        handler.setup('rriba.b0', 'b0')
-        handler.setup('rriba.b1', 'b1')
-        handler.setup('rriba.b2', 'b2')
-        handler.setup('rriba.b3', 'b3')
-        handler.setup('rriba.b4', 'b4')
-        handler.setup('rriba.b5', 'b5')
-        handler.setup('rriba.duration', 'Duration')
-        handler.setup('rriba.odometer', 'Odometer')
-        handler.setup('rriba.current', 'Current')
-        handler.setup('rriba.speed', 'Speed')
+        handler.setup('rriba.b0', 'b0', filter=False)
+        handler.setup('rriba.b1', 'b1', filter=False)
+        handler.setup('rriba.b2', 'b2', filter=False)
+        handler.setup('rriba.b3', 'b3', filter=False)
+        handler.setup('rriba.b4', 'b4', filter=False)
+        handler.setup('rriba.b5', 'b5', filter=False)
+        handler.setup('rriba.duration', 'Duration', filter=False)
+        handler.setup('rriba.odometer', 'Odometer', filter=False)
+        handler.setup('rriba.current', 'Current', filter=False)
+        handler.setup('rriba.speed', 'Speed', filter=False)
         mqtt_monitor.topic(handler)
 
 
@@ -156,7 +173,7 @@ class Home(Monitor):
 
         handler = GenericEnergy('tele/sonoffP/SENSOR', metering_queue, 240, 'h.mph')
         handler.NAME = 'Laser'
-        handler.setup('h.lasercurrent', 'Current', )
+        handler.setup('h.lasercurrent', 'Current')
         mqtt_monitor.topic(handler)
 
         handler = GenericEnergy('tele/sonoffD/SENSOR', metering_queue, 240, 'h.mph')

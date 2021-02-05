@@ -17,8 +17,8 @@ class Handler:
         self.time_of_last_evaluate = time.time()
         self.list_of_keys = []
 
-    def setup(self, topic, key, *, clamp=0):
-        self.list_of_keys.append({'key': key, 'topic': topic, 'clamp': clamp})
+    def setup(self, topic, key, *, clamp=0, filter=True):
+        self.list_of_keys.append({'key': key, 'topic': topic, 'clamp': clamp, 'filter': filter})
 
     def publish(self, topic, message, *, filter=True):
         logging.debug('Handler: %s publish %s to topic %s', self.NAME, message, topic)
@@ -71,7 +71,7 @@ class Generic(Handler):
         super().handle_json(json_string)
         data = json.loads(json_string)
         for k in self.list_of_keys:
-            self.publish(k['topic'], data[k['key']])
+            self.publish(k['topic'], data[k['key']], filter=k['filter'])
 
 
 class GenericEnergy(Handler):
@@ -83,7 +83,7 @@ class GenericEnergy(Handler):
         for k in self.list_of_keys:
             if k['clamp'] > data['ENERGY'][k['key']]:
                 data['ENERGY'][k['key']] = 0.0
-            self.publish(k['topic'], data['ENERGY'][k['key']])
+            self.publish(k['topic'], data['ENERGY'][k['key']], filter=k['filter'])
 
 class GenericString(Handler):
     NAME = 'Generic'
@@ -91,5 +91,5 @@ class GenericString(Handler):
     def handle_json(self, message):
         super().handle_json(message)
         for k in self.list_of_keys:
-            self.publish(k['topic'], str(message, 'utf-8'))
+            self.publish(k['topic'], str(message, 'utf-8'), filter=k['filter'])
 

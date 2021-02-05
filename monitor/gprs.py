@@ -1,3 +1,6 @@
+'''
+This code is no longer being maintained.
+'''
 import logging
 import serial
 import time
