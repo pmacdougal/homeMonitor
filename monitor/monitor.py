@@ -89,8 +89,8 @@ class Barn(Monitor):
         '''
         handler = Generic('tele/0dd92a/SENSOR', metering_queue, 240, 's.mph')
         handler.NAME = 'PumpHouse'
-        handler.setup('s.it', 'T0')
-        handler.setup('s.ot', 'T1')
+        handler.setup('s.ot', 'T0')
+        handler.setup('s.it', 'T1')
         handler.setup('s.ht', 'HT')
         handler.setup('s.rt', 'RTCount')
         mqtt_monitor.topic(handler)

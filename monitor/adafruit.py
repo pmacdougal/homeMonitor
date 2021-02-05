@@ -75,24 +75,28 @@ class Adafruit:
             self.last_hour = localtime.tm_hour
         self.publishes_this_hour += 1
 
-        if topic not in self.feed_cache or not filter or message != self.feed_cache[topic]:
+        if (topic not in self.feed_cache) or (not filter) or message != self.feed_cache[topic]:
             # rate limiting
             delta = time.time() - self.last_publish_time
             if delta < self.period:
                 time.sleep(self.period - delta)
 
-            self.last_publish_time = time.time()
-            self.feed_cache[topic] = message
             try:
                 when = datetime.datetime.now()
                 if True: # set False for testing without sending to AdaFruit
                     if 'rest' == self.access:
+                        self.last_publish_time = time.time()
+                        logging.info('Adafruit.publish(): Adding %s to feed_cache', topic)
+                        self.feed_cache[topic] = message
                         logging.debug('Adafruit: publish %s to %s', message, topic)
                         pub_result = self.aio.send_data(topic, message)
                         # Data(created_epoch=1598796144, created_at='2020-08-30T14:02:24Z', updated_at=None, value='122', completed_at=None, feed_id=1404586, expiration='2020-10-29T14:02:24Z', position=None, id='0EH9YC6HB3M2YETZXNJS79D0HV', lat=None, lon=None, ele=None)
                         when = pub_result.created_at
                     elif 'mqtt' == self.access:
                         if self.aio.is_connected():
+                            self.last_publish_time = time.time()
+                            logging.info('Adafruit.publish(): Adding %s to feed_cache', topic)
+                            self.feed_cache[topic] = message
                             logging.debug('Adafruit: publish %s to %s', message, topic)
                             self.aio.publish(topic, message)
                         else:
@@ -107,11 +111,13 @@ class Adafruit:
                                 # previous message was published (we got SEND OK)
                                 self.gprs.successfully_published = False
                                 logging.info('Adafruit: publish: GPRS indicates message %s was sent to Adafruit', self.gprs.lasttopic)
-                                
                                 return 0 # casues message to be popped
                             else:
                                 pass
 
+                            self.last_publish_time = time.time()
+                            logging.info('Adafruit.publish(): Adding %s to feed_cache', topic)
+                            self.feed_cache[topic] = message
                             logging.debug('Adafruit: publish %s to %s', message, topic)
                             self.gprs.publish(topic, message)
                             # getting here does not mean that the data got to AdaFruit
@@ -134,6 +140,6 @@ class Adafruit:
                 logging.info('Adafruit: Publish succeeded for %s %s at %s', topic, message, when)
 
         else:
-            logging.debug('Adafruit: Filtering out %s %s', topic, message)
+            logging.debug('Adafruit: Filtering out %s %s %d %d %d', topic, message, (not topic in self.feed_cache), (filter), (topic in self.feed_cache and message != self.feed_cache[topic]))
 
         return 0 # successful processing of this message

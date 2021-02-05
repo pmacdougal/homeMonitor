@@ -530,6 +530,19 @@ class Bg96:
             logging.error('response_mismatches() called with empty response_list')
             self.goto_foo()
 
+    def method_match_pub(self, unused):
+        '''
+        check if the front of the response list is 'GPRS_RESPONSE_QMTPUB'
+        '''
+        if (0 < len(self.response_list)
+        and GPRS_RESPONSE_QMTPUB == self.response_list[0]):
+            self.response_matches()
+            logging.info('Bg96: method_match_pub: Bg96 indicates message %s was sent to Adafruit', self.lasttopic)
+            self.successfully_published = True
+            return True
+        self.response_mismatches(GPRS_RESPONSE_QMTPUB)
+        return False
+
     def method_match_generic(self, token):
         '''
         check if the front of the response list is 'token'
@@ -675,7 +688,7 @@ class Bg96:
         b'+QMTOPEN: 1,0\r\n': {'method': method_match_open, 'arg': 0},
         b'+QMTOPEN: 1,2\r\n': {'method': method_match_open, 'arg': 2},
         b'+QMTCONN: 1,0,0\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_QMTCONN},
-        b'+QMTPUB: 1,0,0\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_QMTPUB},
+        b'+QMTPUB: 1,0,0\r\n': {'method': method_match_pub, 'arg': 0},
         b'+QMTSTAT: 1,1\r\n': {'method': method_match_urc, 'arg': 1},
         b'+QIURC: "pdpdeact",1\r\n': {'method': method_match_urc, 'arg': 2}
     }
