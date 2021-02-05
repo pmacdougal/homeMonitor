@@ -92,6 +92,7 @@ class Adafruit:
                         pub_result = self.aio.send_data(topic, message)
                         # Data(created_epoch=1598796144, created_at='2020-08-30T14:02:24Z', updated_at=None, value='122', completed_at=None, feed_id=1404586, expiration='2020-10-29T14:02:24Z', position=None, id='0EH9YC6HB3M2YETZXNJS79D0HV', lat=None, lon=None, ele=None)
                         when = pub_result.created_at
+                        return 0 # successful handing of message
                     elif 'mqtt' == self.access:
                         if self.aio.is_connected():
                             self.last_publish_time = time.time()
@@ -99,6 +100,7 @@ class Adafruit:
                             self.feed_cache[topic] = message
                             logging.debug('Adafruit: publish %s to %s', message, topic)
                             self.aio.publish(topic, message)
+                            return 0 # successful handling of message
                         else:
                             logging.error('Adafruit: publish: Not connected error')
                             return 1 # unsuccessful processing of this message
@@ -107,14 +109,11 @@ class Adafruit:
                         self.gprs.loop()
                         # see if radio is ready for data
                         if self.gprs.is_ready():
-                            if self.gprs.successfully_published:
-                                # previous message was published (we got SEND OK)
-                                self.gprs.successfully_published = False
-                                logging.info('Adafruit: publish: GPRS indicates message %s was sent to Adafruit', self.gprs.lasttopic)
-                                return 0 # casues message to be popped
-                            else:
-                                pass
-
+                            #if self.gprs.successfully_published:
+                            #    # message was published (we got +QMTPUB)
+                            #    self.gprs.successfully_published = False
+                            #    logging.info('Adafruit: publish: GPRS indicates message %s was sent to Adafruit', self.gprs.lasttopic)
+                            #    return 0 # casues message to be popped
                             self.last_publish_time = time.time()
                             logging.info('Adafruit.publish(): Adding %s to feed_cache', topic)
                             self.feed_cache[topic] = message
@@ -141,5 +140,6 @@ class Adafruit:
 
         else:
             logging.debug('Adafruit: Filtering out %s %s %d %d %d', topic, message, (not topic in self.feed_cache), (filter), (topic in self.feed_cache and message != self.feed_cache[topic]))
+            return 0 # successful processing of this message
 
-        return 0 # successful processing of this message
+        return 1
