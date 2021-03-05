@@ -33,25 +33,31 @@ class Adafruit:
             try:
                 self.aio.connect()
             except TimeoutError:
-                logging.info('Adafruit: Connection timed out')
+                logging.info('Adafruit.__init__(): Connection timed out')
             else:
                 self.aio.loop_background()
         elif 'lte' == self.access:
             self.gprs = Bg96('/dev/ttyS0')
         else:
-            logging.error('access method %s is not defined', self.access)
+            logging.error('Adafruit.__init__(): access method %s is not defined', self.access)
             raise NotImplementedError
 
     def mqtt_connected(self, client):
         logging.info('Adafruit.mqtt_connected(): io.adafruit.com MQTT broker connected.')
         client.subscribe('pmacdougal/throttle') # feed from AdaFruit to subscribe to
-        client.subscribe('pmacdougal/feeds/g.sq') # feed from AdaFruit to subscribe to for testing
+        #client.subscribe('pmacdougal/feeds/g.sq') # feed from AdaFruit to subscribe to for testing
+        #client.subscribe('pmacdougal/feeds/s.mps') # feed from AdaFruit
 
     def mqtt_disconnected(self, client):
         logging.info('Adafruit.mqtt_disconnected(): io.adafruit.com MQTT broker disconnected.')
 
     def mqtt_message(self, client, topic, payload):
         logging.info('Adafruit.mqtt_message(): got message %s with value %s.', topic, payload)
+        if 'pmacdougal/feeds/s.mps' == topic:
+            pass
+            #self.local_broker.publish(topic, payload) # forward to local broker
+
+
 
     def loop(self):
         if 'rest' == self.access:
@@ -62,7 +68,7 @@ class Adafruit:
             # let radio process serial data
             self.gprs.loop()
         else:
-            logging.error('Adafruit.publish(): access method %s is not defined', self.access)
+            logging.error('Adafruit.loop(): access method %s is not defined', self.access)
             raise NotImplementedError
 
     def publish(self, topic, message, state, filter):

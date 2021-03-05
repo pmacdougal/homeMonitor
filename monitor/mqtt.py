@@ -2,6 +2,10 @@ import logging
 import json
 import paho.mqtt.client as mqtt
 
+'''
+Code to monitor my local MQTT broker at the given IP address
+'''
+
 class MqttMonitor:
     def __init__(self, IP_address, *, port=1883):
         self.IP_address = IP_address

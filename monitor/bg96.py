@@ -412,7 +412,7 @@ class Bg96:
                 self.response_matches()
                 return True
             elif line.startswith(b'+CME ERROR: '):
-                errno = int(line[11:].decode(encoding='UTF-8'))
+                errno = int(line[12:].decode(encoding='UTF-8'))
                 return self.method_match_cme_error(errno)
             else:
                 logging.error('radio output not parsed: %s', line)
