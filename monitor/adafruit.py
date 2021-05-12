@@ -2,6 +2,7 @@ import logging
 import time
 import datetime
 from Adafruit_IO import Client, MQTTClient, RequestError, ThrottlingError, AdafruitIOError, Data
+from urllib3.exceptions import MaxRetryError, NewConnectionError
 #from .gprs import Gprs
 from .bg96 import Bg96
 
@@ -119,7 +120,7 @@ class Adafruit:
                     if True: # set False for testing without sending to AdaFruit
                         if 'rest' == self.access:
                             self.last_publish_time = time.time()
-                            logging.info('Adafruit.publish(): Adding %s to feed_cache', topic)
+                            #logging.info('Adafruit.publish(): Adding %s to feed_cache', topic)
                             self.feed_cache[topic] = message
                             logging.debug('Adafruit.publish(): publish %s to %s', message, topic)
                             pub_result = self.aio.send_data(topic, message)
@@ -173,6 +174,12 @@ class Adafruit:
                     logging.error('Adafruit.publish(): Exception: Got a ThrottlingError for %s', topic, exc_info=True)
                 except AdafruitIOError:
                     logging.error('Adafruit.publish(): Exception: Got an AdafruitIOError for %s', topic, exc_info=True)
+                except NewConnectionError as e:
+                    logging.error('Adafruit.publish(): New connection exception: %s', e, exc_info=False)
+                except MaxRetryError as e:
+                    logging.error('Adafruit.publish(): Retry exception: %s', e, exc_info=False)
+                except ConnectionError as e:
+                    logging.error('Adafruit.publish(): Connection exception: %s', e, exc_info=False)
                 except Exception as e:
                     logging.error('Adafruit.publish(): Exception: %s', e, exc_info=True)
                 else:

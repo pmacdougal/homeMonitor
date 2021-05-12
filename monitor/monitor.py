@@ -59,8 +59,9 @@ class Monitor:
                             metering_queue[0]['state'] = newstate
                         elif Adafruit.ERROR == newstate:
                             # abandon this entry
-                            logging.debug('Monitor.run() ERROR discarding metering_queue entry %s', t)
+                            logging.debug('Monitor.run() ERROR: Discarding metering_queue entry %s', t)
                             metering_queue.pop(0)
+                            # delay here?
                         elif Adafruit.INITIAL == newstate:
                             # this is wierd... I guess we do nothing and let it try again
                             pass
@@ -72,10 +73,10 @@ class Monitor:
                     else:
                         aio.loop()
                 except Exception as e:
-                    logging.error('Exception: %s', e)
+                    logging.error('Exception: %s', e, exc_info=True)
 
         except Exception as e:
-            logging.error('Exception: %s', e)
+            logging.error('Exception: %s', e, exc_info=True)
             status = 1
         except KeyboardInterrupt:
             status = 2
@@ -87,7 +88,7 @@ class Monitor:
             # all exits
             sys.stdout.flush()
             sys.stderr.flush()
-            return(status)
+            return status
 
 
 class Barn(Monitor):
@@ -164,6 +165,18 @@ class Home(Monitor):
         handler.setup('h.r', 'RTCount')
         handler.setup('h.v', 'valveCount')
         handler.setup('h.vr', 'VBATLOAD')
+        handler.setup('w.valve', 'valveCount')
+        handler.setup('w.vbat', 'VBATLOAD')
+        mqtt_monitor.topic(handler)
+
+        handler = GenericString('tele/99e813/VOT', metering_queue, 0, 'h.mph')
+        handler.NAME = 'watererValve'
+        handler.setup('w.vot', 'unused')
+        mqtt_monitor.topic(handler)
+
+        handler = GenericString('tele/99e813/VCT', metering_queue, 0, 'h.mph')
+        handler.NAME = 'watererValve'
+        handler.setup('w.vct', 'unused')
         mqtt_monitor.topic(handler)
 
         handler = Generic('tele/9215de/SENSOR', metering_queue, 240, 'h.mph')
