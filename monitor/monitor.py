@@ -23,6 +23,7 @@ class Monitor:
         raise NotImplementedError
 
     def run(self, msg, topic, mqtt_ip):
+        status = 0
         metering_queue = []
         metering_queue.append({'topic': topic, 'message': msg})
 
@@ -83,7 +84,7 @@ class Monitor:
         #except NotImplementedError:
         #    don't catch this exception
         else:
-            status = 0 # if normal exit
+            pass # normal exit
         finally:
             # all exits
             sys.stdout.flush()
@@ -116,6 +117,11 @@ class Barn(Monitor):
         handler = Generic('tele/0dd096/SENSOR', metering_queue, 240, 's.mph')
         handler.NAME = 'Loft'
         handler.setup('s.lt', 'T0')
+        mqtt_monitor.topic(handler)
+
+        handler = GenericString('ups', metering_queue, 0, 's.mph')
+        handler.NAME = 'Ups'
+        handler.setup('s.ups', 'unused')
         mqtt_monitor.topic(handler)
 
         # tele/921601/TRIP {"GCBMS":1.0,"Sketch":"ESP GCBMS coprocessor v1.0","Duration":7,"Odometer":0,"Current":0,"Speed":0,"b0":5231,"B0":5497,"b1":0,"B1":0,"b2":0,"B2":0,"b3":0,"B3":0,"b4":0,"B4":0,"b5":0,"B5":0,"StopTime":159199}
