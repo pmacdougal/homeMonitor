@@ -119,6 +119,8 @@ class Barn(Monitor):
         mqtt_monitor.topic(handler)
 
         # tele/921601/TRIP {"GCBMS":1.0,"Sketch":"ESP GCBMS coprocessor v1.0","Duration":7,"Odometer":0,"Current":0,"Speed":0,"b0":5231,"B0":5497,"b1":0,"B1":0,"b2":0,"B2":0,"b3":0,"B3":0,"b4":0,"B4":0,"b5":0,"B5":0,"StopTime":159199}
+        # 921601 is AD
+        # 0dccf8 is N
         handler = Generic('tele/921601/TRIP', metering_queue, 0, 's.mph')
         handler.NAME = 'Rriba'
         handler.setup('rriba.b0', 'b0', filter=False)
@@ -132,6 +134,20 @@ class Barn(Monitor):
         handler.setup('rriba.current', 'Current', filter=False)
         handler.setup('rriba.speed', 'Speed', filter=False)
         mqtt_monitor.topic(handler)
+        handler = Generic('tele/0dccf8/TRIP', metering_queue, 0, 's.mph')
+        handler.NAME = 'Helga'
+        handler.setup('helga.b0', 'b0', filter=False)
+        handler.setup('helga.b1', 'b1', filter=False)
+        handler.setup('helga.b2', 'b2', filter=False)
+        handler.setup('helga.b3', 'b3', filter=False)
+        handler.setup('helga.b4', 'b4', filter=False)
+        handler.setup('helga.b5', 'b5', filter=False)
+        handler.setup('helga.duration', 'Duration', filter=False)
+        handler.setup('helga.odometer', 'Odometer', filter=False)
+        handler.setup('helga.current', 'Current', filter=False)
+        handler.setup('helga.speed', 'Speed', filter=False)
+        mqtt_monitor.topic(handler)
+
 
 
 class Home(Monitor):
