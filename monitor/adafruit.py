@@ -86,12 +86,12 @@ class Adafruit:
             if 'lte' == self.access:
                 if self.gprs.successfully_published:
                     self.gprs.successfully_published = False
-                    logging.info('Adafruit: publish: GPRS indicates message %s was sent to Adafruit', topic)
+                    logging.debug('Adafruit: publish: GPRS indicates message %s was sent to Adafruit', topic)
                     return Adafruit.PUBLISHED
 
                 if self.gprs.radio_error:
                     self.gprs.radio_error = False
-                    logging.info('Adafruit: publish: GPRS indicates radio error for message %s', topic)
+                    logging.error('Adafruit: publish: GPRS indicates radio error for message %s', topic)
                     return Adafruit.ERROR
 
                 # allow radio to process serial data
@@ -155,7 +155,7 @@ class Adafruit:
                                 #    logging.info('Adafruit: publish: GPRS indicates message %s was sent to Adafruit', self.gprs.lasttopic)
                                 #    return 0 # casues message to be popped
                                 self.last_publish_time = time.time()
-                                logging.info('Adafruit.publish(): Adding %s to feed_cache', topic)
+                                logging.debug('Adafruit.publish(): Adding %s to feed_cache', topic)
                                 self.feed_cache[topic] = message
                                 logging.debug('Adafruit.publish(): publish %s to %s', message, topic)
                                 self.gprs.publish(topic, message)

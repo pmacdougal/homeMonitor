@@ -433,7 +433,7 @@ class Bg96:
                 if (self.radio_busy
                 and 0 == len(self.response_list)):
                     # we have satisfied the expected response for the command
-                    logging.info('%s done in %d seconds. Next state %s. Radio is now idle.', self.command, self.loop_time-self.command_start_time, self.state_string_list[self.next_state])
+                    logging.debug('%s done in %d seconds. Next state %s. Radio is now idle.', self.command, self.loop_time-self.command_start_time, self.state_string_list[self.next_state])
                     self.radio_busy = False
                     self.previous_state = self.state
                     self.state = self.next_state
@@ -453,7 +453,7 @@ class Bg96:
                 self.state_list[self.state].run()
 
             except xxx as e:
-                logging.info('xxx exception %s', e, exc_info=True, stack_info=True)
+                logging.error('xxx exception %s', e, exc_info=True, stack_info=True)
             except Exception as e:
                 logging.error('Exception: %s', e, exc_info=True)
             else:
@@ -565,7 +565,7 @@ class Bg96:
         '''
         CME ERROR
         '''
-        logging.info('Got CME ERROR %s %s %s', arg, self.response_list, self.state_string_list[self.previous_state])
+        logging.error('Got CME ERROR %s %s %s', arg, self.response_list, self.state_string_list[self.previous_state])
         # there may be an MQTT packet echoed from the radio here.  We need to flush that
         self.response_list = [GPRS_RESPONSE_SPONTANEOUS]
         self.next_state = self.state_string_to_int_dict['GPRS_STATE_FLUSH']
