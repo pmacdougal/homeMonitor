@@ -399,7 +399,7 @@ class Bg96:
                 elif 2 == len(signal):
                     self.signal = (ord(signal[0]) - ord(b'0'))*10 + (ord(signal[1]) - ord(b'0'))
                 else:
-                    logging.error('This is unexpected.  len(signal) is %s', len(signal))
+                    logging.error('This is unexpected.  len(signal) is %d', len(signal))
                     self.signal = 0
                 logging.debug('Signal quality is %d', self.signal)
                 self.response_matches()
@@ -411,7 +411,7 @@ class Bg96:
             and 0 < len(self.response_list)
             and GPRS_RESPONSE_GPS == self.response_list[0]):
                 # <UTC>,<latitude>,<longitude>,<hdop>,<altitude>,<fix>,<cog>,<spkm>,<spkn>,<date>,<nsat>
-                logging.debug('GPS values are %d', line[10:])
+                logging.debug('GPS values are %s', line[10:])
                 self.response_matches()
                 return True
             else:
