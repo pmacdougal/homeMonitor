@@ -678,7 +678,7 @@ class Bg96:
         b'AT+QMTCLOSE=1\r\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_ECHO},
         b'AT+QMTOPEN=1,"io.adafruit.com",1883\r\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_ECHO},
         b'AT+QMTCONN=1,"bg96","'+username.encode(encoding='UTF-8')+b'","'+password.encode(encoding='UTF-8')+b'"\r\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_ECHO},
-        b'AT+QGPSLOC?\r\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_ECHO}
+        b'AT+QGPSLOC?\r\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_ECHO},
         # these are errors or unusual responses
         b'ERROR\r\n': {'method': method_match_error, 'arg': GPRS_RESPONSE_ERROR},
         #b'+CME ERROR: 3\r\n': {'method': method_match_cme_error, 'arg': 3},
