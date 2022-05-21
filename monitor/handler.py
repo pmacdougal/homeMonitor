@@ -93,3 +93,29 @@ class GenericString(Handler):
         for k in self.list_of_keys:
             self.publish(k['topic'], str(message, 'utf-8'), filter=k['filter'])
 
+class GenericStringArg(Handler):
+    NAME = 'Generic'
+
+    def handle_json(self, json_string):
+        super().handle_json(json_string)
+        data = json.loads(json_string)
+        logging.debug('GenericStringArg: %s list_of_keys: %s', self.NAME, self.list_of_keys)
+        for k in self.list_of_keys:
+            logging.debug('GenericStringArg: %s key: %s %s', self.NAME, k['key'], data[k['key']])
+            self.publish(k['topic'], data[k['key']], filter=k['filter'])
+
+class GenericOnOff(Handler):
+    NAME = 'Generic'
+
+    def handle_json(self, json_string):
+        super().handle_json(json_string)
+        data = json.loads(json_string)
+        logging.debug('GenericOnOff: %s list_of_keys: %s', self.NAME, self.list_of_keys)
+        for k in self.list_of_keys:
+            logging.debug('GenericOnOff: %s key: %s %s', self.NAME, k['key'], data[k['key']])
+            if b'ON' == data[k['key']]:
+                self.publish(k['topic'], 1, filter=k['filter'])
+            elif b'OFF' == data[k['key']]:
+                self.publish(k['topic'], 0, filter=k['filter'])
+            else:
+                self.publish(k['topic'], data[k['key']], filter=k['filter'])

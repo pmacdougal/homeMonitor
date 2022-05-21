@@ -4,7 +4,7 @@ import logging
 import time
 import sys
 from .mqtt import MqttMonitor
-from .handler import Generic, GenericEnergy, GenericString
+from .handler import Generic, GenericEnergy, GenericString, GenericStringArg, GenericOnOff
 from .adafruit import Adafruit
 from .private import username, password
 # private.py is not part of the checked in code.  You will need to create it.
@@ -176,7 +176,8 @@ class Home(Monitor):
         handler.setup('g.t1',  'T1')
         mqtt_monitor.topic(handler)
 
-        handler = Generic('tele/3154ff/SENSOR', metering_queue, 1, 'h.mph')
+        # handler = Generic('tele/3154ff/SENSOR', metering_queue, 1, 'h.mph')  this one died
+        handler = Generic('tele/df6745/SENSOR', metering_queue, 1, 'h.mph')
         handler.NAME = 'SoilProbe'
         handler.setup('h.sp',  'S0')
         handler.setup('h.sb',  'S1')
@@ -230,6 +231,16 @@ class Home(Monitor):
         handler = GenericString('tele/0dd6ce/wce', metering_queue, 0, 'h.mph')
         handler.NAME = 'Status'
         handler.setup('h.wce', 'unused')
+        mqtt_monitor.topic(handler)
+
+        handler = GenericString('tele/0dd6ce/uoc', metering_queue, 0, 'h.mph')
+        handler.NAME = 'Status'
+        handler.setup('h.uoc', 'unused')
+        mqtt_monitor.topic(handler)
+
+        handler = GenericOnOff('tele/shellyA/STATE', metering_queue, 240, 'h.mph')
+        handler.NAME = 'ReadingLight'
+        handler.setup('h.light', 'POWER2')
         mqtt_monitor.topic(handler)
 
         # tele/920e8c/SENSOR (esp_now_slave) {"S0":332,"S1":0,"S2":0}

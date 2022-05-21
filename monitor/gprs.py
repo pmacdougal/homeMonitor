@@ -309,6 +309,7 @@ class Gprs:
         self.successfully_published = False
         self.output_timeout_start_time = 0
         self.lasttopic = ""
+        self.savedLevel = logging.getEffectiveLevel()
 
         self.state_list = [None]*len(self.state_string_to_int_dict)
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_CALL_READY']]  = GprsState(self, b'AT+CCALR?',    [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_CALR, GPRS_RESPONSE_OK], self.state_string_to_int_dict['GPRS_STATE_CALL_READY'], prefix='loop_cr')

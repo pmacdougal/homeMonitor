@@ -80,6 +80,7 @@ class Adafruit:
             self.feed_cache = {}
             self.publishes_this_hour = 0
             self.last_hour = localtime.tm_hour
+            logging.setLevel(self.gprs.savedLevel) # restore logging verbosity at the top of the hour
         self.publishes_this_hour += 1
 
         if Adafruit.INFLIGHT == state:
@@ -122,7 +123,7 @@ class Adafruit:
                             self.last_publish_time = time.time()
                             #logging.info('Adafruit.publish(): Adding %s to feed_cache', topic)
                             self.feed_cache[topic] = message
-                            logging.debug('Adafruit.publish(): publish %s to %s', message, topic)
+                            logging.info('Adafruit.publish(): publish %s to %s', message, topic)
                             pub_result = self.aio.send_data(topic, message)
                             # Data(created_epoch=1598796144, created_at='2020-08-30T14:02:24Z', updated_at=None, value='122', completed_at=None, feed_id=1404586, expiration='2020-10-29T14:02:24Z', position=None, id='0EH9YC6HB3M2YETZXNJS79D0HV', lat=None, lon=None, ele=None)
                             # I don't know what a failure result looks like

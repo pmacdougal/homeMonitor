@@ -142,21 +142,30 @@ class GprsState:
         check if the radio is powered on
         open the serial port
         '''
-        if RPi.GPIO.input(self.radio.STATUS):
-            # Pull the power pin high for three seconds
-            RPi.GPIO.output(self.radio.BG96_POWERKEY, RPi.GPIO.HIGH)
-            logging.info('The radio is OFF.  Pulling pwrkey high... ')
-            self.radio.start_time = self.radio.loop_time
-            self.radio.previous_state = self.radio.state
-            self.radio.state = self.radio.state_string_to_int_dict['GPRS_STATE_POWERING_UP']
-            return 1
-        else:
-            logging.info('The radio is ON.  Opening serial port. ')
-            # Open the serial port
-            self.radio.ser = serial.Serial(self.radio.port, 115200)
-            if None == self.radio.ser:
-                logging.error('Unable to open serial port %s', self.radio.port)
+        try:
+            RPi.GPIO.setmode(RPi.GPIO.BOARD)
+            RPi.GPIO.setup(self.radio.BG96_POWERKEY, RPi.GPIO.OUT)
+            RPi.GPIO.setup(self.radio.STATUS, RPi.GPIO.IN)
+            if RPi.GPIO.input(self.radio.STATUS):
+                # Pull the power pin high for three seconds
+                RPi.GPIO.output(self.radio.BG96_POWERKEY, RPi.GPIO.HIGH)
+                logging.info('The radio is OFF.  Pulling pwrkey high... ')
+                self.radio.start_time = self.radio.loop_time
+                self.radio.previous_state = self.radio.state
+                self.radio.state = self.radio.state_string_to_int_dict['GPRS_STATE_POWERING_UP']
                 return 1
+            else:
+                logging.info('The radio is ON.  Opening serial port. ')
+                # Open the serial port
+                self.radio.ser = serial.Serial(self.radio.port, 115200)
+                if None == self.radio.ser:
+                    logging.error('Unable to open serial port %s', self.radio.port)
+                    return 1
+        except Exception as e:
+            logging.error('Exception: %s', e, exc_info=True)
+        else:
+            pass
+
         return 0
 
     def method_power_up_delay(self):
@@ -165,6 +174,8 @@ class GprsState:
         always returns 1, so that we do not do a radio.send_command
         '''
         if 3 <= (self.radio.loop_time - self.radio.start_time):
+            RPi.GPIO.setmode(RPi.GPIO.BOARD)
+            RPi.GPIO.setup(self.radio.BG96_POWERKEY, RPi.GPIO.OUT)
             RPi.GPIO.output(self.radio.BG96_POWERKEY, RPi.GPIO.LOW)
             logging.info('Releasing pwrkey')
             self.radio.previous_state = self.radio.state
@@ -266,6 +277,9 @@ class Bg96:
         self.radio_error = False
         self.output_timeout_start_time = 0
         self.lasttopic = ""
+        self.unresponsive = 0
+        self.codepath = 0
+        self.savedLevel = logging.getEffectiveLevel()
 
         self.state_list = [None]*len(self.state_string_to_int_dict)
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_INITIAL']]     = GprsState(self, b'AT',           [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK], self.state_string_to_int_dict['GPRS_STATE_REGISTERED'], prefix='power_up')
@@ -283,16 +297,6 @@ class Bg96:
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_UNDEFINED']]   = GprsState(self, b'',             [], self.state_string_to_int_dict['GPRS_STATE_FOO'])
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_GPS']]         = GprsState(self, b'AT+QGPSLOC?',  [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_GPS, GPRS_RESPONSE_OK], self.state_string_to_int_dict['GPRS_STATE_KEEPALIVE'])
 
-
-
-        #set GPIO numbering mode for the program
-        RPi.GPIO.setmode(RPi.GPIO.BOARD)
-        RPi.GPIO.setwarnings(False)
-        RPi.GPIO.setup(self.BG96_ENABLE, RPi.GPIO.OUT)
-        RPi.GPIO.setup(self.BG96_POWERKEY, RPi.GPIO.OUT)
-        RPi.GPIO.setup(self.STATUS, RPi.GPIO.IN)
-        RPi.GPIO.setup(self.USER_BUTTON, RPi.GPIO.IN)
-        RPi.GPIO.setup(self.USER_LED, RPi.GPIO.OUT)
 
     def __del__(self):
         RPi.GPIO.cleanup()
@@ -315,6 +319,7 @@ class Bg96:
         if self.radio_busy and 120 < time.time() - self.output_timeout_start_time:
             logging.warn("It has been two minutes since we got radio output")
             self.output_timeout_start_time = time.time() # reset
+            self.unresponsive += 1
         return 0
 
     def goto_foo(self):
@@ -327,6 +332,25 @@ class Bg96:
             self.previous_state = self.state
             self.state = self.state_string_to_int_dict['GPRS_STATE_FOO']
             self.next_state = self.state
+
+    def goto_reset(self):
+        '''
+        Cause the state machine to reset and start over
+        '''
+        if 0 == len(self.response_list):
+            self.next_state = self.state_string_to_int_dict['GPRS_STATE_INITIAL']
+        else:
+            self.previous_state = self.state
+            self.state = self.state_string_to_int_dict['GPRS_STATE_INITIAL']
+            self.next_state = self.state
+        self.unresponsive = 0
+        # Power off the radio
+        RPi.GPIO.setmode(RPi.GPIO.BOARD)
+        RPi.GPIO.setup(self.radio.BG96_POWERKEY, RPi.GPIO.OUT)
+        # Pull the power pin high for three seconds
+        RPi.GPIO.output(self.radio.BG96_POWERKEY, RPi.GPIO.HIGH)
+        time.sleep(3)
+        RPi.GPIO.output(self.radio.BG96_POWERKEY, RPi.GPIO.LOW)
 
     def handle_radio_output(self):
         '''
@@ -359,8 +383,9 @@ class Bg96:
         return False # not sure we can get here
 
     def handle_line(self, line):
-        logging.debug('    Bg96.handle_radio_output() %s - %s %s', self.lines_of_response, self.radio_output, self.response_list)
+        logging.debug('    Bg96.handle_line() %s - %s %s', self.lines_of_response, self.radio_output, self.response_list)
         self.lines_of_response += 1
+        self.unresponsive = 0
         if (100 < self.lines_of_response): # anything over 4 or 5 lines is 'stuck'
             logging.error('We are stuck.')
             self.goto_foo()
@@ -439,6 +464,13 @@ class Bg96:
                     self.state = self.next_state
                     self.next_state = self.state_string_to_int_dict['GPRS_STATE_UNDEFINED']
                     self.packet = ()
+                if self.unresponsive > 10: # 20 minutes of no radio output
+                    logging.warn('Radio is unresponsive, attempting to reset')
+                    # turn up the logging verbosity
+                    self.savedLevel = logging.getEffectiveLevel()
+                    logging.setLevel(logging.DEBUG)
+                    self.codepath = 1
+                    self.goto_reset()
 
         if (self.radio_busy
         and self.state_string_to_int_dict['GPRS_STATE_FOO'] != self.state):
@@ -518,7 +550,7 @@ class Bg96:
 
     def response_mismatches(self, arg):
         if 0 < len(self.response_list):
-            logging.error('response_mismatches() called because response %d does not match the expected response %d', arg, self.response_list[0])
+            logging.error('response_mismatches() called because response %d does not match the expected response %d (%s)', arg, self.response_list[0], self.radio_output)
             # don't pop the response list
             # consume the radio output
             pos = self.radio_output.find(b'\r\n')
@@ -566,6 +598,7 @@ class Bg96:
         CME ERROR
         '''
         logging.error('Got CME ERROR %s %s %s', arg, self.response_list, self.state_string_list[self.previous_state])
+        # 505 means GPS is not turned on (I think)
         # there may be an MQTT packet echoed from the radio here.  We need to flush that
         self.response_list = [GPRS_RESPONSE_SPONTANEOUS]
         self.next_state = self.state_string_to_int_dict['GPRS_STATE_FLUSH']
@@ -604,6 +637,13 @@ class Bg96:
             self.next_state = self.state_string_to_int_dict['GPRS_STATE_MQTTSHUT']
             self.response_matches()
             logging.error('method_match_open() sees that the MQTT identifier is occupied')
+            return True
+        elif (0 < len(self.response_list)
+        and GPRS_RESPONSE_QMTOPEN == self.response_list[0]):
+            # need to shut the connection
+            self.next_state = self.state_string_to_int_dict['GPRS_STATE_MQTTSHUT']
+            self.response_matches()
+            logging.error('method_match_open() sees error with arg %d', arg)
             return True
         else:
             logging.error('method_match_open() called with non matching response token %d rather than the expected %d', GPRS_RESPONSE_QMTOPEN, self.response_list[0])
@@ -654,7 +694,17 @@ class Bg96:
             self.response_matches()
             return True
 
-        
+        if (0 < len(self.response_list)
+        and GPRS_RESPONSE_QMTCLOSE == self.response_list[len(self.response_list)-1]):
+            # QMTCLOSE failed
+            logging.error('method_match_error() called after QMTCLOSE failed')
+            # turn up the logging verbosity
+            self.savedLevel = logging.getEffectiveLevel()
+            logging.setLevel(logging.DEBUG)
+            self.codepath = 2
+            self.goto_reset()
+            return True
+
         return self.method_match_goto_foo(GPRS_RESPONSE_ERROR)
 
     def method_match_blank(self, token):
@@ -687,10 +737,17 @@ class Bg96:
         b'+CREG: 0,0\r\n': {'method': method_match_creg, 'arg': False},
         b'+CREG: 0,1\r\n': {'method': method_match_creg, 'arg': True},
         b'+CREG: 0,2\r\n': {'method': method_match_creg, 'arg': False},
+        b'+CREG: 0,3\r\n': {'method': method_match_creg, 'arg': False},
+        b'+CREG: 0,4\r\n': {'method': method_match_creg, 'arg': False},
         b'+CREG: 0,5\r\n': {'method': method_match_creg, 'arg': True},
         b'+QMTCLOSE: 1,0\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_QMTCLOSE},
         b'+QMTOPEN: 1,0\r\n': {'method': method_match_open, 'arg': 0},
+        b'+QMTOPEN: 1,1\r\n': {'method': method_match_open, 'arg': 1},
         b'+QMTOPEN: 1,2\r\n': {'method': method_match_open, 'arg': 2},
+        b'+QMTOPEN: 1,3\r\n': {'method': method_match_open, 'arg': 3},
+        b'+QMTOPEN: 1,4\r\n': {'method': method_match_open, 'arg': 4},
+        b'+QMTOPEN: 1,5\r\n': {'method': method_match_open, 'arg': 5},
+        b'+QMTOPEN: 1,-1\r\n': {'method': method_match_open, 'arg': -1},
         b'+QMTCONN: 1,0,0\r\n': {'method': method_match_generic, 'arg': GPRS_RESPONSE_QMTCONN},
         b'+QMTPUB: 1,0,0\r\n': {'method': method_match_pub, 'arg': 0},
         b'+QMTSTAT: 1,1\r\n': {'method': method_match_urc, 'arg': 1},
@@ -717,7 +774,7 @@ class Bg96:
             + topic.encode(encoding='UTF-8')
             + b'"',
             packet,
-            [GPRS_RESPONSE_ECHO, 
+            [GPRS_RESPONSE_ECHO,
              GPRS_RESPONSE_PACKET,
              GPRS_RESPONSE_OK,
              GPRS_RESPONSE_QMTPUB],
