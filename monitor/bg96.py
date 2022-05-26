@@ -279,7 +279,8 @@ class Bg96:
         self.lasttopic = ""
         self.unresponsive = 0
         self.codepath = 0
-        self.savedLevel = logging.getEffectiveLevel()
+        self._log = logging.getLogger('root')
+        self.savedLevel = self._log.getEffectiveLevel()
 
         self.state_list = [None]*len(self.state_string_to_int_dict)
         self.state_list[self.state_string_to_int_dict['GPRS_STATE_INITIAL']]     = GprsState(self, b'AT',           [GPRS_RESPONSE_ECHO, GPRS_RESPONSE_OK], self.state_string_to_int_dict['GPRS_STATE_REGISTERED'], prefix='power_up')
@@ -467,8 +468,7 @@ class Bg96:
                 if self.unresponsive > 10: # 20 minutes of no radio output
                     logging.warn('Radio is unresponsive, attempting to reset')
                     # turn up the logging verbosity
-                    self.savedLevel = logging.getEffectiveLevel()
-                    logging.setLevel(logging.DEBUG)
+                    self._log.setLevel(logging.DEBUG)
                     self.codepath = 1
                     self.goto_reset()
 
@@ -699,8 +699,7 @@ class Bg96:
             # QMTCLOSE failed
             logging.error('method_match_error() called after QMTCLOSE failed')
             # turn up the logging verbosity
-            self.savedLevel = logging.getEffectiveLevel()
-            logging.setLevel(logging.DEBUG)
+            self._log.setLevel(logging.DEBUG)
             self.codepath = 2
             self.goto_reset()
             return True

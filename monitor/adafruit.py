@@ -80,7 +80,7 @@ class Adafruit:
             self.feed_cache = {}
             self.publishes_this_hour = 0
             self.last_hour = localtime.tm_hour
-            logging.setLevel(self.gprs.savedLevel) # restore logging verbosity at the top of the hour
+            self.gprs._log.setLevel(self.gprs.savedLevel) # restore logging verbosity at the top of the hour
         self.publishes_this_hour += 1
 
         if Adafruit.INFLIGHT == state:
